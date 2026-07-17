@@ -3,18 +3,35 @@ body,
 #root {
   height: 100%;
   margin: 0;
+  background: #1a1a1a; /* matches the CARTO dark basemap; dark is the default theme */
 }
 
 .app {
   position: relative;
   height: 100vh;
   width: 100vw;
+  --panel-bg: rgba(30, 30, 32, 0.92);
+  --panel-fg: #e5e5e5;
+  --panel-shadow: rgba(0, 0, 0, 0.5);
+  --stale-bg: #450a0a;
+  --stale-fg: #fca5a5;
+  color-scheme: dark;
+}
+
+.app[data-theme='light'] {
+  --panel-bg: rgba(255, 255, 255, 0.92);
+  --panel-fg: #111;
+  --panel-shadow: rgba(0, 0, 0, 0.2);
+  --stale-bg: #fee2e2;
+  --stale-fg: #991b1b;
+  color-scheme: light;
 }
 
 .fire-map {
   position: absolute;
   inset: 0;
   z-index: 0;
+  background: #1a1a1a;
 }
 
 .status-bar {
@@ -28,8 +45,9 @@ body,
   gap: 0.75rem;
   flex-wrap: wrap;
   padding: 0.5rem 0.75rem;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  background: var(--panel-bg);
+  color: var(--panel-fg);
+  box-shadow: 0 1px 4px var(--panel-shadow);
   font-family: system-ui, sans-serif;
   font-size: 0.875rem;
 }
@@ -50,8 +68,8 @@ body,
 }
 
 .stale-chip {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--stale-bg);
+  color: var(--stale-fg);
   border-radius: 999px;
   padding: 0.15rem 0.6rem;
   font-weight: 600;
@@ -67,10 +85,11 @@ body,
 }
 
 .legend {
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--panel-bg);
+  color: var(--panel-fg);
   border-radius: 6px;
   padding: 0.5rem 0.75rem;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 4px var(--panel-shadow);
 }
 
 .legend-row {
@@ -82,6 +101,12 @@ body,
 
 .legend-toggle {
   display: none;
+  background: var(--panel-bg);
+  color: var(--panel-fg);
+  border: none;
+  border-radius: 6px;
+  padding: 0.3rem 0.6rem;
+  box-shadow: 0 1px 4px var(--panel-shadow);
 }
 
 .swatch {
@@ -105,6 +130,10 @@ body,
   border: 2px dashed #f97316;
 }
 
+.fire-popup {
+  color: #111; /* Leaflet's popup content wrapper stays white in both themes for text legibility */
+}
+
 .fire-popup-caveat {
   margin-top: 0.4rem;
   font-size: 0.85em;
@@ -125,6 +154,17 @@ body,
   100% {
     opacity: 0.4;
   }
+}
+
+.app[data-theme='dark'] .leaflet-control-zoom a,
+.app[data-theme='dark'] .leaflet-bar a {
+  background: #242426;
+  color: #e5e5e5;
+  border-color: #444;
+}
+
+.app[data-theme='dark'] .leaflet-control-zoom a:hover {
+  background: #333336;
 }
 
 @media (max-width: 640px) {

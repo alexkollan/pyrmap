@@ -1,4 +1,5 @@
 import { formatLocalTime } from '../lib/formatting.js';
+import type { Theme } from '../lib/theme.js';
 
 const HOURS_OPTIONS = [6, 12, 24, 48, 72] as const;
 
@@ -9,10 +10,21 @@ export interface StatusBarProps {
   loading: boolean;
   error: boolean;
   onRefresh: () => void;
+  theme: Theme;
+  onToggleTheme: () => void;
 }
 
-/** Top bar: app name, last-updated time, time-window select, auto-refresh indicator, stale-data chip (dev-plan §8.1/§8.4). */
-export function StatusBar({ hours, onHoursChange, lastSuccessAt, loading, error, onRefresh }: StatusBarProps): JSX.Element {
+/** Top bar: app name, last-updated time, time-window select, theme toggle, auto-refresh indicator, stale-data chip. */
+export function StatusBar({
+  hours,
+  onHoursChange,
+  lastSuccessAt,
+  loading,
+  error,
+  onRefresh,
+  theme,
+  onToggleTheme,
+}: StatusBarProps): JSX.Element {
   return (
     <div className="status-bar">
       <span className="app-name">PyrMap</span>
@@ -33,6 +45,9 @@ export function StatusBar({ hours, onHoursChange, lastSuccessAt, loading, error,
       </select>
       <button type="button" onClick={onRefresh} disabled={loading}>
         {loading ? 'Refreshing…' : 'Refresh'}
+      </button>
+      <button type="button" onClick={onToggleTheme} aria-label="Toggle dark/light map">
+        {theme === 'dark' ? 'Light mode' : 'Dark mode'}
       </button>
       <span
         className={loading ? 'auto-refresh-indicator active' : 'auto-refresh-indicator'}
