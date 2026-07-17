@@ -7,13 +7,17 @@
   "scripts": {
     "build": "tsc -b",
     "test": "vitest run",
-    "dev:mock": "FIRMS_MOCK=1 node --watch --experimental-strip-types src/index.ts"
+    "dev:mock": "tsc -b && FIRMS_MOCK=1 node dist/index.js"
   },
   "dependencies": {
     "@pyrmap/shared": "workspace:*",
-    "fastify": "^5.2.0"
+    "better-sqlite3": "^11.7.0",
+    "fastify": "^5.2.0",
+    "node-cron": "^3.0.3"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node-cron": "^3.0.11",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }
