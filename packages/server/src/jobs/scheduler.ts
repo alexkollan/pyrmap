@@ -1,6 +1,8 @@
 import cron, { type ScheduledTask } from 'node-cron';
 import { GREECE_BBOX_STRING, type Tier } from '@pyrmap/shared';
 import { ingestSource } from '../services/ingestService.js';
+import { runConfirmationPass } from '../services/confirmationService.js';
+import { runDecayPass } from '../services/decayService.js';
 import type { FireDataSource } from '../ports/FireDataSource.js';
 import type { FireRepository } from '../ports/FireRepository.js';
 
@@ -18,9 +20,13 @@ export interface Scheduler {
   stop: () => void;
   pollGeo: () => Promise<void>;
   pollPolar: () => Promise<void>;
+  decay: () => void;
 }
 
-/** Registers the geo (every 10 min) and polar (every 30 min) poll jobs, dev-plan §5. Runs both once immediately. */
+/**
+ * Registers dev-plan §5's jobs: poll-geo (10min), poll-polar (30min, then a confirmation pass),
+ * decay (10min). Runs poll-geo and poll-polar once immediately.
+ */
 export function startScheduler(deps: SchedulerDeps): Scheduler {
   const now = deps.now ?? (() => new Date());
   const geoSourceIds = Object.entries(deps.effectiveSources)
@@ -52,11 +58,23 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
     for (const sourceId of polarSourceIds) {
       await ingestOne(sourceId, 'polar');
     }
+    const { confirmed } = runConfirmationPass(deps.repository, now);
+    if (confirmed > 0) {
+      deps.onLog?.(`confirmation pass: confirmed=${confirmed}`);
+    }
+  }
+
+  function decay(): void {
+    const { expired } = runDecayPass(deps.repository, now);
+    if (expired > 0) {
+      deps.onLog?.(`decay pass: expired=${expired}`);
+    }
   }
 
   const tasks: ScheduledTask[] = [
     cron.schedule('*/10 * * * *', () => void pollGeo()),
     cron.schedule('*/30 * * * *', () => void pollPolar()),
+    cron.schedule('*/10 * * * *', decay),
   ];
 
   void pollGeo();
@@ -66,5 +84,6 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
     stop: () => tasks.forEach((task) => task.stop()),
     pollGeo,
     pollPolar,
+    decay,
   };
 }
