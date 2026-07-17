@@ -11,7 +11,7 @@
     "test": "pnpm -r test",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "dev": "trap 'kill 0' EXIT INT TERM; pnpm --filter @pyrmap/server dev:mock & pnpm --filter @pyrmap/web dev & wait"
+    "dev": "node scripts/dev.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
