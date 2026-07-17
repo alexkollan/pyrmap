@@ -1,9 +1,12 @@
+import { statSync } from 'node:fs';
 import Database, { type Database as DatabaseType } from 'better-sqlite3';
-import type { BoundingBox, Detection, GeoStatus, Tier } from '@pyrmap/shared';
+import type { BoundingBox, Detection, GeoDetection, GeoStatus, Tier } from '@pyrmap/shared';
 import type {
   FetchLogEntry,
   FireRepository,
+  GeoStatusCounts,
   InsertedDetection,
+  LastFetchInfo,
   NewDetectionRow,
 } from '../../ports/FireRepository.js';
 import { runMigrations } from './migrations.js';
@@ -38,10 +41,26 @@ function rowToDetection(row: DetectionRow): Detection {
   };
 }
 
+interface GeoDetectionRow extends DetectionRow {
+  status: string;
+  confirmed_by: number | null;
+}
+
+function rowToGeoDetection(row: GeoDetectionRow): GeoDetection {
+  return {
+    ...rowToDetection(row),
+    tier: 'geo',
+    status: row.status as GeoDetection['status'],
+    confirmedBy: row.confirmed_by,
+  };
+}
+
 export class SqliteFireRepository implements FireRepository {
   private readonly db: DatabaseType;
+  private readonly dbPath: string;
 
   constructor(dbPath: string) {
+    this.dbPath = dbPath;
     this.db = new Database(dbPath);
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('foreign_keys = ON');
@@ -131,6 +150,65 @@ export class SqliteFireRepository implements FireRepository {
       .get(detectionId) as { status: string; confirmed_by: number | null } | undefined;
     if (!row) return null;
     return { status: row.status as GeoStatus, confirmedById: row.confirmed_by };
+  }
+
+  findPolarDetectionsSince(sinceIso: string): Detection[] {
+    const rows = this.db
+      .prepare(`SELECT * FROM detections WHERE tier = 'polar' AND acquired_at >= ? ORDER BY acquired_at DESC`)
+      .all(sinceIso) as DetectionRow[];
+    return rows.map(rowToDetection);
+  }
+
+  findGeoDetectionsSince(sinceIso: string, includeExpired: boolean): GeoDetection[] {
+    const sql = `
+      SELECT d.*, g.status, g.confirmed_by FROM detections d
+      JOIN geo_status g ON g.detection_id = d.id
+      WHERE d.tier = 'geo' AND d.acquired_at >= ?${includeExpired ? '' : " AND g.status != 'expired'"}
+      ORDER BY d.acquired_at DESC
+    `;
+    const rows = this.db.prepare(sql).all(sinceIso) as GeoDetectionRow[];
+    return rows.map(rowToGeoDetection);
+  }
+
+  findLastFetchPerSource(): Record<string, LastFetchInfo> {
+    const rows = this.db
+      .prepare(
+        `SELECT f.source, f.fetched_at, f.rows_inserted, f.error
+         FROM fetch_log f
+         JOIN (SELECT source, MAX(id) AS max_id FROM fetch_log GROUP BY source) latest
+           ON f.source = latest.source AND f.id = latest.max_id`,
+      )
+      .all() as { source: string; fetched_at: string; rows_inserted: number; error: string | null }[];
+
+    const result: Record<string, LastFetchInfo> = {};
+    for (const row of rows) {
+      result[row.source] = { fetchedAt: row.fetched_at, ok: row.error === null, rowsInserted: row.rows_inserted };
+    }
+    return result;
+  }
+
+  countGeoStatuses(): GeoStatusCounts {
+    const rows = this.db.prepare('SELECT status, COUNT(*) AS c FROM geo_status GROUP BY status').all() as {
+      status: string;
+      c: number;
+    }[];
+    const counts: GeoStatusCounts = { unconfirmed: 0, confirmed: 0 };
+    for (const row of rows) {
+      if (row.status === 'unconfirmed') counts.unconfirmed = row.c;
+      if (row.status === 'confirmed') counts.confirmed = row.c;
+    }
+    return counts;
+  }
+
+  countPolarSince(sinceIso: string): number {
+    const row = this.db
+      .prepare(`SELECT COUNT(*) AS c FROM detections WHERE tier = 'polar' AND acquired_at >= ?`)
+      .get(sinceIso) as { c: number };
+    return row.c;
+  }
+
+  getDbSizeBytes(): number {
+    return statSync(this.dbPath).size;
   }
 
   healthCheck(): boolean {
