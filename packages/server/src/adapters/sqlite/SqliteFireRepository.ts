@@ -1,4 +1,5 @@
 import Database, { type Database as DatabaseType } from 'better-sqlite3';
+import type { BoundingBox, Detection, GeoStatus, Tier } from '@pyrmap/shared';
 import type {
   FetchLogEntry,
   FireRepository,
@@ -6,6 +7,36 @@ import type {
   NewDetectionRow,
 } from '../../ports/FireRepository.js';
 import { runMigrations } from './migrations.js';
+
+interface DetectionRow {
+  id: number;
+  tier: string;
+  source: string;
+  latitude: number;
+  longitude: number;
+  acquired_at: string;
+  frp: number | null;
+  confidence: string | null;
+  satellite: string | null;
+  instrument: string | null;
+  daynight: string | null;
+}
+
+function rowToDetection(row: DetectionRow): Detection {
+  return {
+    id: row.id,
+    tier: row.tier as Tier,
+    source: row.source,
+    latitude: row.latitude,
+    longitude: row.longitude,
+    acquiredAt: row.acquired_at,
+    frp: row.frp,
+    confidence: row.confidence,
+    satellite: row.satellite,
+    instrument: row.instrument,
+    daynight: row.daynight,
+  };
+}
 
 export class SqliteFireRepository implements FireRepository {
   private readonly db: DatabaseType;
@@ -55,6 +86,51 @@ export class SqliteFireRepository implements FireRepository {
          VALUES (@source, @fetchedAt, @httpStatus, @rowsParsed, @rowsInserted, @error)`,
       )
       .run(entry);
+  }
+
+  findUnconfirmedGeoDetections(sinceIso?: string): Detection[] {
+    const sql = `
+      SELECT d.* FROM detections d
+      JOIN geo_status g ON g.detection_id = d.id
+      WHERE g.status = 'unconfirmed'${sinceIso ? ' AND d.acquired_at >= ?' : ''}
+    `;
+    const rows = (sinceIso ? this.db.prepare(sql).all(sinceIso) : this.db.prepare(sql).all()) as DetectionRow[];
+    return rows.map(rowToDetection);
+  }
+
+  findPolarCandidatesNear(bbox: BoundingBox, fromIso: string, toIso: string): Detection[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM detections
+         WHERE tier = 'polar'
+           AND latitude BETWEEN @south AND @north
+           AND longitude BETWEEN @west AND @east
+           AND acquired_at BETWEEN @fromIso AND @toIso`,
+      )
+      .all({ ...bbox, fromIso, toIso }) as DetectionRow[];
+    return rows.map(rowToDetection);
+  }
+
+  confirmGeoDetection(detectionId: number, confirmedById: number, updatedAt: string): void {
+    this.db
+      .prepare(`UPDATE geo_status SET status = 'confirmed', confirmed_by = ?, updated_at = ? WHERE detection_id = ?`)
+      .run(confirmedById, updatedAt, detectionId);
+  }
+
+  expireGeoDetections(detectionIds: number[], updatedAt: string): void {
+    const update = this.db.prepare(`UPDATE geo_status SET status = 'expired', updated_at = ? WHERE detection_id = ?`);
+    const runAll = this.db.transaction((ids: number[]) => {
+      for (const id of ids) update.run(updatedAt, id);
+    });
+    runAll(detectionIds);
+  }
+
+  findGeoStatus(detectionId: number): { status: GeoStatus; confirmedById: number | null } | null {
+    const row = this.db
+      .prepare('SELECT status, confirmed_by FROM geo_status WHERE detection_id = ?')
+      .get(detectionId) as { status: string; confirmed_by: number | null } | undefined;
+    if (!row) return null;
+    return { status: row.status as GeoStatus, confirmedById: row.confirmed_by };
   }
 
   healthCheck(): boolean {
