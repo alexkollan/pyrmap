@@ -23,17 +23,19 @@ describe('parseFirmsCsv', () => {
       satellite: 'N',
       instrument: 'VIIRS',
       daynight: 'D',
+      scanKm: 0.4,
+      trackKm: 0.4,
     });
 
     // acq_time "111" -> padded to "0111" -> 01:11
     expect(result.rows[2]?.acquiredAt).toBe('2026-07-15T01:11:00Z');
   });
 
-  it('parses a geo (MSG) sample with a minimal column set', () => {
+  it('parses a geo (MSG) sample with a minimal column set, leaving scan/track null (not reported for geo)', () => {
     const result = parseFirmsCsv(readFixture('msg_geo_sample.csv'));
 
     expect(result.parsed).toBe(2);
-    expect(result.rows[0]).toMatchObject({ latitude: 38.125, longitude: 23.569, frp: 45.2 });
+    expect(result.rows[0]).toMatchObject({ latitude: 38.125, longitude: 23.569, frp: 45.2, scanKm: null, trackKm: null });
     // acq_time "5" -> padded to "0005" -> 00:05
     expect(result.rows[1]?.acquiredAt).toBe('2026-07-15T00:05:00Z');
   });

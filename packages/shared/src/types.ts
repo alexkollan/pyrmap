@@ -13,6 +13,8 @@ export interface Detection {
   satellite: string | null;
   instrument: string | null;
   daynight: string | null;
+  scanKm: number | null; // satellite pixel size along-scan, km (polar tier only; FIRMS doesn't report this for geo)
+  trackKm: number | null; // satellite pixel size along-track, km (polar tier only)
 }
 
 export interface GeoDetection extends Detection {

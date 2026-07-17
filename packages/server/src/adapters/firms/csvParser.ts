@@ -7,6 +7,8 @@ export interface ParsedFirmsRow {
   satellite: string | null;
   instrument: string | null;
   daynight: string | null;
+  scanKm: number | null;
+  trackKm: number | null;
 }
 
 export interface ParseCsvResult {
@@ -46,6 +48,8 @@ export function parseFirmsCsv(body: string): ParseCsvResult {
     satellite: colIndex('satellite'),
     instrument: colIndex('instrument'),
     daynight: colIndex('daynight'),
+    scan: colIndex('scan'),
+    track: colIndex('track'),
   };
 
   const rows: ParsedFirmsRow[] = [];
@@ -69,6 +73,13 @@ function field(cols: string[], index: number): string | undefined {
   return index >= 0 ? cols[index]?.trim() : undefined;
 }
 
+function parseOptionalFloat(cols: string[], index: number): number | null {
+  const raw = field(cols, index);
+  if (!raw) return null;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
 function parseRow(cols: string[], idx: Record<string, number>): ParsedFirmsRow | null {
   const latitudeRaw = field(cols, idx.latitude);
   const longitudeRaw = field(cols, idx.longitude);
@@ -85,17 +96,16 @@ function parseRow(cols: string[], idx: Record<string, number>): ParsedFirmsRow |
   const acqTime = acqTimeRaw.padStart(4, '0');
   const acquiredAt = `${acqDate}T${acqTime.slice(0, 2)}:${acqTime.slice(2, 4)}:00Z`;
 
-  const frpRaw = field(cols, idx.frp);
-  const frp = frpRaw ? Number(frpRaw) : null;
-
   return {
     latitude,
     longitude,
     acquiredAt,
-    frp: frp !== null && Number.isFinite(frp) ? frp : null,
+    frp: parseOptionalFloat(cols, idx.frp),
     confidence: field(cols, idx.confidence) || null,
     satellite: field(cols, idx.satellite) || null,
     instrument: field(cols, idx.instrument) || null,
     daynight: field(cols, idx.daynight) || null,
+    scanKm: parseOptionalFloat(cols, idx.scan),
+    trackKm: parseOptionalFloat(cols, idx.track),
   };
 }
