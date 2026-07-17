@@ -4,6 +4,12 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    // Dev-only: the backend serves both API and built frontend from one origin in production (dev-plan §10.1).
+    proxy: {
+      '/api': 'http://localhost:8080',
+    },
+  },
   build: {
     outDir: 'dist',
   },
