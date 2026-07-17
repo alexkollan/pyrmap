@@ -23,6 +23,8 @@ const detectionRow = (acquiredAt: string, dedupKey: string): NewDetectionRow => 
   satellite: null,
   instrument: null,
   daynight: null,
+  scanKm: null,
+  trackKm: null,
 });
 
 beforeEach(() => {

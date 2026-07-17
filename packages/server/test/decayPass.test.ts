@@ -23,6 +23,8 @@ const geoRow = (acquiredAt: string, dedupKey: string): NewDetectionRow => ({
   satellite: null,
   instrument: null,
   daynight: null,
+  scanKm: null,
+  trackKm: null,
 });
 
 const polarRow = (dedupKey: string): NewDetectionRow => ({

@@ -23,6 +23,8 @@ const detectionRow = (overrides: Partial<NewDetectionRow>): NewDetectionRow => (
   satellite: 'N',
   instrument: 'VIIRS',
   daynight: 'D',
+  scanKm: 0.4,
+  trackKm: 0.4,
   ...overrides,
 });
 

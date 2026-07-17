@@ -19,6 +19,8 @@ const polar = (overrides: Partial<Detection>): Detection => ({
   satellite: null,
   instrument: null,
   daynight: null,
+  scanKm: null,
+  trackKm: null,
   ...overrides,
 });
 
@@ -34,6 +36,8 @@ const geo: Detection = {
   satellite: null,
   instrument: null,
   daynight: null,
+  scanKm: null,
+  trackKm: null,
 };
 
 describe('findConfirmation', () => {

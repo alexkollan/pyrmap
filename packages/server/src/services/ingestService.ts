@@ -64,6 +64,8 @@ export async function ingestSource(params: IngestParams): Promise<IngestResult> 
     satellite: parsedRow.satellite,
     instrument: parsedRow.instrument,
     daynight: parsedRow.daynight,
+    scanKm: parsedRow.scanKm,
+    trackKm: parsedRow.trackKm,
   }));
 
   const inserted = repository.insertDetections(newRows);
