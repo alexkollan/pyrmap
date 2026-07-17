@@ -1,0 +1,13 @@
+services:
+  pyrmap:
+    build: .
+    container_name: pyrmap
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/data
+    networks:
+      - web
+networks:
+  web:
+    external: true
