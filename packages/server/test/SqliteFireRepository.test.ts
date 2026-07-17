@@ -20,6 +20,8 @@ const row = (overrides: Partial<NewDetectionRow> = {}): NewDetectionRow => ({
   satellite: 'MSG',
   instrument: null,
   daynight: 'D',
+  scanKm: null,
+  trackKm: null,
   ...overrides,
 });
 

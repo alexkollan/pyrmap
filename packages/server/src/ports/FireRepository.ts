@@ -23,6 +23,8 @@ export interface NewDetectionRow {
   satellite: string | null;
   instrument: string | null;
   daynight: string | null;
+  scanKm: number | null;
+  trackKm: number | null;
 }
 
 export interface InsertedDetection extends NewDetectionRow {

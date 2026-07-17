@@ -23,6 +23,8 @@ interface DetectionRow {
   satellite: string | null;
   instrument: string | null;
   daynight: string | null;
+  scan_km: number | null;
+  track_km: number | null;
 }
 
 function rowToDetection(row: DetectionRow): Detection {
@@ -38,6 +40,8 @@ function rowToDetection(row: DetectionRow): Detection {
     satellite: row.satellite,
     instrument: row.instrument,
     daynight: row.daynight,
+    scanKm: row.scan_km,
+    trackKm: row.track_km,
   };
 }
 
@@ -70,8 +74,8 @@ export class SqliteFireRepository implements FireRepository {
   insertDetections(rows: NewDetectionRow[]): InsertedDetection[] {
     const insert = this.db.prepare(`
       INSERT OR IGNORE INTO detections
-        (dedup_key, tier, source, latitude, longitude, acquired_at, frp, confidence, satellite, instrument, daynight)
-      VALUES (@dedupKey, @tier, @source, @latitude, @longitude, @acquiredAt, @frp, @confidence, @satellite, @instrument, @daynight)
+        (dedup_key, tier, source, latitude, longitude, acquired_at, frp, confidence, satellite, instrument, daynight, scan_km, track_km)
+      VALUES (@dedupKey, @tier, @source, @latitude, @longitude, @acquiredAt, @frp, @confidence, @satellite, @instrument, @daynight, @scanKm, @trackKm)
     `);
 
     const inserted: InsertedDetection[] = [];

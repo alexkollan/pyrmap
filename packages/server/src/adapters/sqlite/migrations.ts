@@ -38,6 +38,10 @@ export const MIGRATIONS: readonly string[] = [
     error TEXT
   );
   `,
+  `
+  ALTER TABLE detections ADD COLUMN scan_km REAL;
+  ALTER TABLE detections ADD COLUMN track_km REAL;
+  `,
 ];
 
 /** Applies pending migrations in order, tracked by index in a `migrations` table. */
