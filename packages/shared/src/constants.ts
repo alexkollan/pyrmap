@@ -20,6 +20,10 @@ export const FIRMS_SOURCES = {
 /** Confirmation rule thresholds, dev-plan §6.3. */
 export const CONFIRMATION_MAX_DISTANCE_KM = 5;
 export const CONFIRMATION_MAX_TIME_HOURS = 6;
+/** Coarse SQL pre-filter box (degrees) around a geo detection before exact haversine/time checks. */
+export const CONFIRMATION_BBOX_MARGIN_DEG = 0.1;
+/** Only geo detections acquired within this window are eligible for confirmation. */
+export const CONFIRMATION_ELIGIBILITY_HOURS = 24;
 
 /** Decay rule threshold, dev-plan §6.4. */
 export const DECAY_MAX_AGE_HOURS = 12;
