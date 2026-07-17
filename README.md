@@ -50,21 +50,22 @@ pnpm -r build
 pnpm test          # full suite, must pass before every commit
 ```
 
-To run the backend against fixture data instead of the real FIRMS API (no `FIRMS_MAP_KEY`
-needed):
+Start both the backend and frontend together with one command:
 
 ```bash
-pnpm --filter @pyrmap/server dev:mock
+pnpm dev
 ```
 
-Then, in another terminal, run the frontend dev server (proxies `/api` to `localhost:8080`):
-
-```bash
-pnpm --filter @pyrmap/web dev
-```
+This runs the backend against fixture data (`FIRMS_MOCK=1`, a local `data/dev.db`) at
+`http://localhost:8080` and the frontend dev server at `http://localhost:5173` (which proxies
+`/api` to the backend), and stops both cleanly on Ctrl+C. It reads `FIRMS_MAP_KEY`/`PORT`/
+`LOG_LEVEL` from `.env` if present, but never sends real requests to FIRMS — only the mock
+data source is used. To run just one side: `pnpm --filter @pyrmap/server dev:mock` or
+`pnpm --filter @pyrmap/web dev`.
 
 Only hit the real FIRMS API for explicit end-to-end verification — never during routine
-frontend/backend iteration.
+frontend/backend iteration. To do that, run the server without `FIRMS_MOCK`, e.g.
+`FIRMS_MAP_KEY=... node packages/server/dist/index.js`, or use the Docker image directly.
 
 ## Project structure
 
