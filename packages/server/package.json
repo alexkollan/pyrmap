@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc -b",
     "test": "vitest run",
-    "dev:mock": "tsc -b && FIRMS_MOCK=1 node dist/index.js"
+    "dev:mock": "tsc -b && mkdir -p ../../data && FIRMS_MOCK=1 DB_PATH=../../data/dev.db node --env-file-if-exists=../../.env dist/index.js"
   },
   "dependencies": {
     "@fastify/static": "^8.0.4",
