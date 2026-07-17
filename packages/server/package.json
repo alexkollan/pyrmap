@@ -1,0 +1,20 @@
+{
+  "name": "@pyrmap/server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run",
+    "dev:mock": "FIRMS_MOCK=1 node --watch --experimental-strip-types src/index.ts"
+  },
+  "dependencies": {
+    "@pyrmap/shared": "workspace:*",
+    "fastify": "^5.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
