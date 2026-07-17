@@ -3,6 +3,7 @@ import { GREECE_BBOX_STRING, type Tier } from '@pyrmap/shared';
 import { ingestSource } from '../services/ingestService.js';
 import { runConfirmationPass } from '../services/confirmationService.js';
 import { runDecayPass } from '../services/decayService.js';
+import { runRetention } from '../services/retentionService.js';
 import type { FireDataSource } from '../ports/FireDataSource.js';
 import type { FireRepository } from '../ports/FireRepository.js';
 
@@ -21,11 +22,12 @@ export interface Scheduler {
   pollGeo: () => Promise<void>;
   pollPolar: () => Promise<void>;
   decay: () => void;
+  retention: () => void;
 }
 
 /**
  * Registers dev-plan §5's jobs: poll-geo (10min), poll-polar (30min, then a confirmation pass),
- * decay (10min). Runs poll-geo and poll-polar once immediately.
+ * decay (10min), retention (daily 03:00 UTC). Runs poll-geo and poll-polar once immediately.
  */
 export function startScheduler(deps: SchedulerDeps): Scheduler {
   const now = deps.now ?? (() => new Date());
@@ -71,10 +73,16 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
     }
   }
 
+  function retention(): void {
+    const { deletedDetections, deletedFetchLogs } = runRetention(deps.repository, now);
+    deps.onLog?.(`retention: deletedDetections=${deletedDetections} deletedFetchLogs=${deletedFetchLogs}`);
+  }
+
   const tasks: ScheduledTask[] = [
     cron.schedule('*/10 * * * *', () => void pollGeo()),
     cron.schedule('*/30 * * * *', () => void pollPolar()),
     cron.schedule('*/10 * * * *', decay),
+    cron.schedule('0 3 * * *', retention),
   ];
 
   void pollGeo();
@@ -85,5 +93,6 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
     pollGeo,
     pollPolar,
     decay,
+    retention,
   };
 }

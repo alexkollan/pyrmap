@@ -211,6 +211,14 @@ export class SqliteFireRepository implements FireRepository {
     return statSync(this.dbPath).size;
   }
 
+  deleteDetectionsBefore(cutoffIso: string): number {
+    return this.db.prepare('DELETE FROM detections WHERE acquired_at < ?').run(cutoffIso).changes;
+  }
+
+  deleteFetchLogsBefore(cutoffIso: string): number {
+    return this.db.prepare('DELETE FROM fetch_log WHERE fetched_at < ?').run(cutoffIso).changes;
+  }
+
   healthCheck(): boolean {
     return this.db.prepare('SELECT 1').get() !== undefined;
   }

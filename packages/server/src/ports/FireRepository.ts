@@ -70,6 +70,11 @@ export interface FireRepository {
   /** Size in bytes of the underlying DB file on disk. */
   getDbSizeBytes(): number;
 
+  /** Deletes detections with acquired_at < cutoffIso (cascades to geo_status). Returns rows deleted. */
+  deleteDetectionsBefore(cutoffIso: string): number;
+  /** Deletes fetch_log rows with fetched_at < cutoffIso. Returns rows deleted. */
+  deleteFetchLogsBefore(cutoffIso: string): number;
+
   /** Runs SELECT 1; true if the DB is reachable. */
   healthCheck(): boolean;
   close(): void;
