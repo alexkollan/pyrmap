@@ -11,7 +11,15 @@ describe('loadConfig', () => {
       port: 8080,
       dbPath: '/data/pyrmap.db',
       logLevel: 'info',
+      eumetsatConsumerKey: null,
+      eumetsatConsumerSecret: null,
     });
+  });
+
+  it('passes through EUMETSAT credentials when both are set', () => {
+    const config = loadConfig({ ...validEnv, EUMETSAT_CONSUMER_KEY: 'ck', EUMETSAT_CONSUMER_SECRET: 'cs' });
+    expect(config.eumetsatConsumerKey).toBe('ck');
+    expect(config.eumetsatConsumerSecret).toBe('cs');
   });
 
   it('rejects a missing FIRMS_MAP_KEY', () => {

@@ -4,8 +4,10 @@ import { buildApp } from './app.js';
 import { SqliteFireRepository } from './adapters/sqlite/SqliteFireRepository.js';
 import { FirmsClient } from './adapters/firms/FirmsClient.js';
 import { MockFireDataSource } from './adapters/firms/MockFireDataSource.js';
+import { EumetsatFciClient } from './adapters/eumetsat/EumetsatFciClient.js';
 import { resolveSources } from './domain/sourceResolution.js';
 import { startScheduler } from './jobs/scheduler.js';
+import type { FireAlertSource } from './ports/FireAlertSource.js';
 import type { FireDataSource } from './ports/FireDataSource.js';
 
 async function main(): Promise<void> {
@@ -23,10 +25,21 @@ async function main(): Promise<void> {
     app.log.warn(warning);
   }
 
+  // Meteosat MTG fire alerts direct from EUMETSAT — the geo tier's feed while FIRMS lacks MSG/SEVIRI.
+  // Disabled under FIRMS_MOCK so dev never hits the real EUMETSAT API (CLAUDE.md §9).
+  let alertSource: FireAlertSource | undefined;
+  if (!process.env.FIRMS_MOCK && config.eumetsatConsumerKey && config.eumetsatConsumerSecret) {
+    alertSource = new EumetsatFciClient(config.eumetsatConsumerKey, config.eumetsatConsumerSecret);
+    app.log.info('Meteosat MTG fire alerts enabled (EUMETSAT Data Store)');
+  } else if (!process.env.FIRMS_MOCK) {
+    app.log.warn('EUMETSAT credentials not set — geo tier limited to FIRMS sources');
+  }
+
   startScheduler({
     dataSource,
     repository,
     effectiveSources: effective,
+    alertSource,
     onLog: (message) => app.log.info(message),
   });
 

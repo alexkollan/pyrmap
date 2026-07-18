@@ -9,6 +9,7 @@ const SOURCE_LABELS: Record<string, string> = {
   VIIRS_SNPP_NRT: 'VIIRS Suomi NPP',
   MODIS_NRT: 'MODIS Terra/Aqua',
   MSG_NRT: 'Meteosat (geo)',
+  MTG_FCI_FIR: 'Meteosat MTG (geo, 10-min)',
 };
 
 export interface LayersPanelProps {

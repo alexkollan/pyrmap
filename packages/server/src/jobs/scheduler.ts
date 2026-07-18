@@ -1,9 +1,11 @@
 import cron, { type ScheduledTask } from 'node-cron';
 import { GREECE_BBOX_STRING, type Tier } from '@pyrmap/shared';
 import { ingestSource } from '../services/ingestService.js';
+import { ingestFireAlerts } from '../services/alertIngestService.js';
 import { runConfirmationPass } from '../services/confirmationService.js';
 import { runDecayPass } from '../services/decayService.js';
 import { runRetention } from '../services/retentionService.js';
+import type { FireAlertSource } from '../ports/FireAlertSource.js';
 import type { FireDataSource } from '../ports/FireDataSource.js';
 import type { FireRepository } from '../ports/FireRepository.js';
 
@@ -16,6 +18,8 @@ export interface SchedulerDeps {
   dataSource: FireDataSource;
   repository: FireRepository;
   effectiveSources: Record<string, Tier>;
+  /** Optional Meteosat MTG fire-alert feed (EUMETSAT); polled alongside the geo tier when present. */
+  alertSource?: FireAlertSource;
   now?: () => Date;
   onLog?: (message: string) => void;
 }
@@ -56,6 +60,9 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
   async function pollGeo(): Promise<void> {
     for (const sourceId of geoSourceIds) {
       await ingestOne(sourceId, 'geo');
+    }
+    if (deps.alertSource) {
+      await ingestFireAlerts(deps.alertSource, deps.repository, now, deps.onLog);
     }
   }
 
