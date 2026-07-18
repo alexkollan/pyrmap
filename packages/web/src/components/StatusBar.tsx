@@ -1,5 +1,6 @@
 import { formatLocalTime } from '../lib/formatting.js';
 import type { Theme } from '../lib/theme.js';
+import type { ViewMode } from '../lib/viewMode.js';
 
 const HOURS_OPTIONS = [6, 12, 24, 48, 72] as const;
 
@@ -12,9 +13,11 @@ export interface StatusBarProps {
   onRefresh: () => void;
   theme: Theme;
   onToggleTheme: () => void;
+  viewMode: ViewMode;
+  onToggleViewMode: () => void;
 }
 
-/** Top bar: app name, last-updated time, time-window select, theme toggle, auto-refresh indicator, stale-data chip. */
+/** Top bar: app name, last-updated time, time-window select, theme/view toggles, auto-refresh indicator, stale-data chip. */
 export function StatusBar({
   hours,
   onHoursChange,
@@ -24,6 +27,8 @@ export function StatusBar({
   onRefresh,
   theme,
   onToggleTheme,
+  viewMode,
+  onToggleViewMode,
 }: StatusBarProps): JSX.Element {
   return (
     <div className="status-bar">
@@ -48,6 +53,9 @@ export function StatusBar({
       </button>
       <button type="button" onClick={onToggleTheme} aria-label="Toggle dark/light map">
         {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+      </button>
+      <button type="button" onClick={onToggleViewMode} aria-label="Toggle points/area view">
+        {viewMode === 'points' ? 'Area view' : 'Point view'}
       </button>
       <span
         className={loading ? 'auto-refresh-indicator active' : 'auto-refresh-indicator'}

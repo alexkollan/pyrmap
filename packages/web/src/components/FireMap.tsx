@@ -1,7 +1,10 @@
 import { MapContainer, TileLayer } from 'react-leaflet';
 import type { Detection, GeoDetection } from '@pyrmap/shared';
 import { GeoMarker, PolarMarker } from './FireMarker.js';
+import { FireClusterShape } from './FireClusterShape.js';
 import type { Theme } from '../lib/theme.js';
+import type { ViewMode } from '../lib/viewMode.js';
+import { buildFireClusters } from '../lib/fireClusters.js';
 
 const GREECE_CENTER: [number, number] = [38.5, 24.0];
 const INITIAL_ZOOM = 7;
@@ -22,22 +25,30 @@ export function FireMap({
   polar,
   geo,
   theme,
+  viewMode,
 }: {
   polar: Detection[];
   geo: GeoDetection[];
   theme: Theme;
+  viewMode: ViewMode;
 }): JSX.Element {
   const tileLayer = TILE_LAYERS[theme];
 
   return (
     <MapContainer center={GREECE_CENTER} zoom={INITIAL_ZOOM} className="fire-map">
       <TileLayer key={theme} url={tileLayer.url} attribution={tileLayer.attribution} />
-      {polar.map((detection) => (
-        <PolarMarker key={detection.id} detection={detection} />
-      ))}
-      {geo.map((detection) => (
-        <GeoMarker key={detection.id} detection={detection} />
-      ))}
+      {viewMode === 'points' ? (
+        <>
+          {polar.map((detection) => (
+            <PolarMarker key={detection.id} detection={detection} />
+          ))}
+          {geo.map((detection) => (
+            <GeoMarker key={detection.id} detection={detection} />
+          ))}
+        </>
+      ) : (
+        buildFireClusters(polar, geo).map((cluster) => <FireClusterShape key={cluster.id} cluster={cluster} />)
+      )}
     </MapContainer>
   );
 }
