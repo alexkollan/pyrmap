@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.1">
+   <identifier>urn:oid:2.49.0.3.1.1.70</identifier>
+   <sender>urn:oid:2.49.0.2.1</sender>
+   <sent>2026-07-18T09:39:41+00:00</sent>
+   <status>Actual</status>
+   <msgType>Alert</msgType>
+   <scope>Public</scope>
+   <info>
+      <category>Geo</category>
+      <event>FIRE</event>
+      <responseType>Assess</responseType>
+      <responseType>Monitor</responseType>
+      <urgency>Immediate</urgency>
+      <severity>Moderate</severity>
+      <certainty>Likely</certainty>
+      <effective>2026-07-18T09:20:00+00:00</effective>
+      <expires>2026-07-18T09:40:00+00:00</expires>
+      <senderName>EUMETSAT</senderName>
+      <headline>Fire detection report</headline>
+      <description>Fire detection. This is a computer generated report and has not been reviewed by a human.</description>
+      <web>TBD</web>
+      <area>
+         <areaDesc>List of detected fires (latitude, longitude, radius)</areaDesc>
+         <circle>-27.764,31.072 1.319</circle>
+         <circle>-25.598,28.122 1.257</circle>
+         <circle>38.212,23.911 1.201</circle>
+         <circle>38.214,23.934 1.201</circle>
+         <circle>39.402,22.087 1.243</circle>
+         <circle>-16.973,-60.754 2.140</circle>
+         <circle>41.933,26.412 1.288</circle>
+      </area>
+   </info>
+</alert>
