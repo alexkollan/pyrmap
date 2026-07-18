@@ -35,3 +35,6 @@ export const RETENTION_FETCH_LOG_DAYS = 14;
 /** Nominal pixel footprint (km), used to size map markers when a detection has no scan/track of its own. */
 export const GEO_PIXEL_SIZE_KM = 3; // Meteosat SEVIRI nominal resolution
 export const POLAR_FALLBACK_PIXEL_SIZE_KM = 0.5; // VIIRS nominal nadir resolution, for polar rows missing scan/track
+
+/** Detections within this distance of each other are grouped into one approximate fire-extent shape (frontend "area view"). */
+export const FIRE_CLUSTER_DISTANCE_KM = 3;
