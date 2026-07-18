@@ -7,7 +7,10 @@ import { runRetention } from '../services/retentionService.js';
 import type { FireDataSource } from '../ports/FireDataSource.js';
 import type { FireRepository } from '../ports/FireRepository.js';
 
-const DAY_RANGE = 1;
+// FIRMS dayRange counts UTC *calendar* days (1 = today only), not trailing 24h — verified live
+// 2026-07-18: with 1, a 23:20 UTC pass vanishes right after midnight. 2 keeps a full trailing day
+// visible; dedup_key makes the overlap free.
+const DAY_RANGE = 2;
 
 export interface SchedulerDeps {
   dataSource: FireDataSource;
