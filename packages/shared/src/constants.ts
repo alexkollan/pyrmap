@@ -17,6 +17,9 @@ export const FIRMS_SOURCES = {
   MODIS_NRT: 'polar',
 } as const;
 
+/** Source id for Meteosat MTG FCI fire alerts ingested directly from EUMETSAT (geo tier, 10-min cadence). */
+export const MTG_FIR_SOURCE_ID = 'MTG_FCI_FIR';
+
 /** Confirmation rule thresholds, dev-plan §6.3. */
 export const CONFIRMATION_MAX_DISTANCE_KM = 5;
 export const CONFIRMATION_MAX_TIME_HOURS = 6;

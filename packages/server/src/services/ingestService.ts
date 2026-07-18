@@ -68,23 +68,33 @@ export async function ingestSource(params: IngestParams): Promise<IngestResult> 
     trackKm: parsedRow.trackKm,
   }));
 
-  const inserted = repository.insertDetections(newRows);
-
-  if (tier === 'geo' && inserted.length > 0) {
-    repository.insertUnconfirmedGeoStatus(
-      inserted.map((d) => d.id),
-      now().toISOString(),
-    );
-  }
+  const inserted = persistNewDetections(repository, tier, newRows, now);
 
   repository.recordFetchLog({
     source: sourceId,
     fetchedAt,
     httpStatus: fetchResult.httpStatus,
     rowsParsed: parsed,
-    rowsInserted: inserted.length,
+    rowsInserted: inserted,
     error: null,
   });
 
-  return { source: sourceId, rowsParsed: parsed, rowsSkipped: skipped, rowsInserted: inserted.length, error: null };
+  return { source: sourceId, rowsParsed: parsed, rowsSkipped: skipped, rowsInserted: inserted, error: null };
+}
+
+/** Inserts rows (dedup via INSERT OR IGNORE) and seeds geo_status for newly inserted geo detections. Returns insert count. */
+export function persistNewDetections(
+  repository: FireRepository,
+  tier: Tier,
+  rows: NewDetectionRow[],
+  now: () => Date,
+): number {
+  const inserted = repository.insertDetections(rows);
+  if (tier === 'geo' && inserted.length > 0) {
+    repository.insertUnconfirmedGeoStatus(
+      inserted.map((d) => d.id),
+      now().toISOString(),
+    );
+  }
+  return inserted.length;
 }
