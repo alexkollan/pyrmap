@@ -1,20 +1,27 @@
-import { CircleMarker } from 'react-leaflet';
+import { Circle } from 'react-leaflet';
 import type { Detection, GeoDetection } from '@pyrmap/shared';
 import { FirePopup } from './FirePopup.js';
+import { footprintRadiusMeters } from '../lib/footprint.js';
 
 const RED = '#dc2626';
 const ORANGE = '#f97316';
 
+/**
+ * Markers are sized to the satellite pixel's true ground footprint (meters, via Leaflet's Circle —
+ * not CircleMarker's fixed screen pixels), so a wide wildfire naturally reads as a cluster of
+ * overlapping circles rather than a single dot indistinguishable from a small fire.
+ */
+
 /** Polar detections are confirmed by nature: solid red circle. Marker styles per dev-plan §8.2. */
 export function PolarMarker({ detection }: { detection: Detection }): JSX.Element {
   return (
-    <CircleMarker
+    <Circle
       center={[detection.latitude, detection.longitude]}
-      radius={8}
-      pathOptions={{ color: RED, weight: 1, fillColor: RED, fillOpacity: 0.9 }}
+      radius={footprintRadiusMeters(detection)}
+      pathOptions={{ color: RED, weight: 2, fillColor: RED, fillOpacity: 0.9 }}
     >
       <FirePopup detection={detection} kind="polar" />
-    </CircleMarker>
+    </Circle>
   );
 }
 
@@ -22,22 +29,24 @@ export function PolarMarker({ detection }: { detection: Detection }): JSX.Elemen
 export function GeoMarker({ detection }: { detection: GeoDetection }): JSX.Element | null {
   if (detection.status === 'expired') return null;
 
+  const radius = footprintRadiusMeters(detection);
+
   if (detection.status === 'confirmed') {
     return (
-      <CircleMarker
+      <Circle
         center={[detection.latitude, detection.longitude]}
-        radius={10}
+        radius={radius}
         pathOptions={{ color: RED, weight: 2, fillColor: ORANGE, fillOpacity: 0.9 }}
       >
         <FirePopup detection={detection} kind="geo-confirmed" />
-      </CircleMarker>
+      </Circle>
     );
   }
 
   return (
-    <CircleMarker
+    <Circle
       center={[detection.latitude, detection.longitude]}
-      radius={12}
+      radius={radius}
       pathOptions={{
         color: ORANGE,
         weight: 2,
@@ -48,6 +57,6 @@ export function GeoMarker({ detection }: { detection: GeoDetection }): JSX.Eleme
       }}
     >
       <FirePopup detection={detection} kind="geo-unconfirmed" />
-    </CircleMarker>
+    </Circle>
   );
 }
