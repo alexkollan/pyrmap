@@ -140,6 +140,88 @@ body,
   color: #444;
 }
 
+.layers-panel-container {
+  position: absolute;
+  top: 3.4rem;
+  right: 0.75rem;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+}
+
+.layers-toggle {
+  background: var(--panel-bg);
+  color: var(--panel-fg);
+  border: none;
+  border-radius: 6px;
+  padding: 0.3rem 0.6rem;
+  box-shadow: 0 1px 4px var(--panel-shadow);
+  cursor: pointer;
+}
+
+.layers-panel {
+  background: var(--panel-bg);
+  color: var(--panel-fg);
+  border-radius: 6px;
+  padding: 0.6rem 0.85rem;
+  box-shadow: 0 1px 4px var(--panel-shadow);
+  min-width: 12.5rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.layers-group {
+  padding: 0.3rem 0;
+}
+
+.layers-group + .layers-group {
+  border-top: 1px solid rgba(128, 128, 128, 0.25);
+}
+
+.layers-group-title {
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.75;
+  padding: 0.25rem 0;
+}
+
+.layers-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.18rem 0;
+  cursor: pointer;
+}
+
+.layers-empty {
+  opacity: 0.6;
+  font-style: italic;
+  padding: 0.18rem 0;
+}
+
+.layers-panel input[type='range'] {
+  width: 100%;
+}
+
+.wind-arrow-icon {
+  background: transparent;
+  border: none;
+}
+
+.wind-arrow {
+  font-size: 20px;
+  line-height: 28px;
+  text-align: center;
+  color: #38bdf8;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
+}
+
 .pulse-marker {
   animation: pyrmap-pulse 2s ease-in-out infinite;
 }
