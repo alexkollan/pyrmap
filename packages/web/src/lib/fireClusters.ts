@@ -21,6 +21,15 @@ function isConfirmedMember(detection: ClusterMember): boolean {
   return detection.tier === 'polar' || (detection as GeoDetection).status === 'confirmed';
 }
 
+/** Mean position of a cluster's members — anchor point for wind arrows and labels. */
+export function clusterCentroid(cluster: FireCluster): LatLon {
+  const n = cluster.detections.length;
+  return {
+    lat: cluster.detections.reduce((sum, d) => sum + d.latitude, 0) / n,
+    lon: cluster.detections.reduce((sum, d) => sum + d.longitude, 0) / n,
+  };
+}
+
 /** Groups nearby detections (both tiers, non-expired) into approximate fire-extent shapes for "area view". */
 export function buildFireClusters(
   polar: Detection[],
