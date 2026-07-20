@@ -1,0 +1,33 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="flame" x1="0.5" y1="1" x2="0.5" y2="0">
+      <stop offset="0%" stop-color="#dc2626"/>
+      <stop offset="55%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#18181b"/>
+  <path
+    d="M32 8
+       C 26 18, 18 22, 18 34
+       C 18 46.2, 24.5 54, 32 54
+       C 39.5 54, 46 46.2, 46 34
+       C 46 27, 42 22, 38 17
+       C 39 23, 36 26, 34 24
+       C 32.5 22.5, 33.5 18, 32 8
+       Z"
+    fill="url(#flame)"
+  />
+  <path
+    d="M32 26
+       C 29 31, 26 35, 26 40
+       C 26 45.5, 28.8 49, 32 49
+       C 35.2 49, 38 45.5, 38 40
+       C 38 37, 36.5 34.5, 34.5 32
+       C 35 35, 33.3 37, 32 35.5
+       C 31 34.3, 32.5 30, 32 26
+       Z"
+    fill="#18181b"
+    opacity="0.55"
+  />
+</svg>
