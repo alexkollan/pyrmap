@@ -109,25 +109,75 @@ body,
   box-shadow: 0 1px 4px var(--panel-shadow);
 }
 
+.legend-section-title {
+  font-weight: 600;
+  font-size: 0.72rem;
+  opacity: 0.85;
+}
+
+.legend-section-spaced {
+  margin-top: 0.5rem;
+}
+
+.legend-gradient-bar {
+  height: 8px;
+  border-radius: 4px;
+  margin: 0.25rem 0 0.15rem;
+  background: linear-gradient(
+    to right,
+    rgb(220, 38, 38),
+    rgb(249, 115, 22),
+    rgb(34, 197, 94),
+    rgb(59, 130, 246),
+    rgb(107, 114, 128)
+  );
+}
+
+.legend-gradient-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  opacity: 0.75;
+}
+
+.legend-caption {
+  font-size: 0.68rem;
+  opacity: 0.65;
+  font-style: italic;
+  margin-bottom: 0.1rem;
+}
+
+/* Swatch fills are a fixed neutral color for legibility here — real markers are colored by age. */
 .swatch {
   display: inline-block;
   width: 12px;
   height: 12px;
   border-radius: 50%;
-}
-
-.swatch-polar {
-  background: #dc2626;
+  background: #9ca3af;
 }
 
 .swatch-geo-confirmed {
-  background: #f97316;
   border: 2px solid #dc2626;
 }
 
 .swatch-geo-unconfirmed {
   background: transparent;
-  border: 2px dashed #f97316;
+  border: 2px dashed #9ca3af;
+}
+
+.swatch-incident {
+  position: relative;
+}
+
+.swatch-incident::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
 }
 
 .fire-popup {
