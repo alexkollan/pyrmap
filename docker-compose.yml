@@ -17,6 +17,9 @@ services:
       - LSASAF_USERNAME=${LSASAF_USERNAME:-}
       - LSASAF_PASSWORD=${LSASAF_PASSWORD:-}
       - X_BEARER_TOKEN=${X_BEARER_TOKEN:-}
+      - AUTH_USERNAME=${AUTH_USERNAME:-}
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-}
+      - SESSION_SECRET=${SESSION_SECRET:-}
     ports:
       - "48080:8080"
     volumes:
