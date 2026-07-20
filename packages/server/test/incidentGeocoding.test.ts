@@ -7,11 +7,22 @@ describe('geocodeGreekLocation', () => {
     expect(result).toEqual({ latitude: 37.8989, longitude: 23.8718, precision: 'settlement' });
   });
 
-  it('disambiguates a settlement name that exists in multiple places by proximity to the region', () => {
-    // "Πέραμα" exists 7x in Greece; only one is in Attica.
+  it('disambiguates same-named settlements by population within the region, not raw distance to a crude region reference point', () => {
+    // Real live bug, 2026-07-20: "Πέραμα" exists 7x in Greece. Two are in the Attica area — the
+    // real port town near Piraeus (pop. 25,389) and an unpopulated GeoNames entry (pop. 0) that
+    // happened to sit closer to Attica's stored reference point. Nearest-distance picked the
+    // empty one; population correctly picks the real town instead.
     const result = geocodeGreekLocation('Πέραμα', 'Αττικής');
-    expect(result?.precision).toBe('settlement');
-    expect(result?.latitude).toBeCloseTo(37.99, 1);
+    expect(result).toEqual({ latitude: 37.9678, longitude: 23.5721, precision: 'settlement' });
+  });
+
+  it('expands the "Ν." (Νέα) abbreviation and strips a genitive "-ς" to match a compound settlement name', () => {
+    // Real live bug, 2026-07-20: "Ν. Σμύρνης" (Nea Smyrni, genitive, abbreviated) fell through to
+    // the coarse regional_unit fallback because it matched neither "Ν. Σμύρνης" nor "Ν. Σμύρνηςς"
+    // (the old blind "+ς" fallback) against the gazetteer's "Νέα Σμύρνη". Nea Smyrni is a major
+    // Athens municipality (pop. 73,076) that should always resolve at settlement precision.
+    const result = geocodeGreekLocation('Ν. Σμύρνης', 'Αττικής');
+    expect(result).toEqual({ latitude: 37.945, longitude: 23.7142, precision: 'settlement' });
   });
 
   it('falls back to the accusative-case "+ς" candidate when the gazetteer only has the nominative', () => {

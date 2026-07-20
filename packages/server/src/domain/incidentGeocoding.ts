@@ -59,15 +59,53 @@ function distanceKm(a: { lat: number; lon: number }, b: { lat: number; lon: numb
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
+// "Ν." is the standard abbreviation for "Νέα" (New) in compound place names (Ν. Σμύρνη, Ν. Ιωνία,
+// Ν. Μάκρη, ...) — all overwhelmingly feminine, so "Νέα" (not "Νέος"/"Νέο") is the safe expansion.
+// Only handling the one form actually seen in real posts (2026-07-20, see docs/DECISIONS.md) —
+// add more here only once observed for real, not speculatively.
+const ABBREVIATION_RE = /^Ν\.\s+/u;
+
 /** The gazetteer (GeoNames GR dump, see docs/DECISIONS.md 2026-07-20) stores names in nominative
- * case; posts use accusative ("Ωρωπό") where the gazetteer has nominative ("Ωρωπός"). Trying
- * "+ς" catches the common masculine -ος noun pattern; genuinely irregular declensions (rare)
- * simply won't match and the post is skipped rather than mismapped. */
+ * case, undeclined; posts write them in whatever case the sentence needs. Tries, in order: as
+ * written; with the common "Ν." -> "Νέα" abbreviation expanded; "+ς" for the masculine -ος
+ * accusative pattern ("Ωρωπό" -> "Ωρωπός"); "-ς" stripped for the feminine/consonant-stem
+ * genitive pattern ("Σμύρνης" -> "Σμύρνη") — each tried against both the as-written and the
+ * abbreviation-expanded form. Genuinely irregular declensions (rare) simply won't match and the
+ * post is skipped rather than mismapped. */
 function settlementCandidates(name: string): Settlement[] {
-  const folded = foldAccents(name);
-  const direct = settlementsByName.get(folded);
-  if (direct) return direct;
-  return settlementsByName.get(`${folded}ς`) ?? [];
+  const expanded = ABBREVIATION_RE.test(name) ? name.replace(ABBREVIATION_RE, 'Νέα ') : null;
+
+  for (const base of expanded ? [name, expanded] : [name]) {
+    const folded = foldAccents(base);
+    const variants = [folded, `${folded}ς`, folded.endsWith('ς') ? folded.slice(0, -1) : null];
+    for (const variant of variants) {
+      if (!variant) continue;
+      const match = settlementsByName.get(variant);
+      if (match) return match;
+    }
+  }
+  return [];
+}
+
+// How far a settlement candidate may sit from its region's (crude) reference point and still
+// count as "in the right area" — generous, since these reference points aren't true geometric
+// centroids (see the population-priority comment below for why that matters).
+const REGION_PLAUSIBLE_KM = 80;
+
+/**
+ * Among same-named settlement candidates, prefer the most populous one within a plausible
+ * distance of the region, not merely the nearest. A real, live miss: two places are both named
+ * "Πέραμα" — the real port town near Piraeus (population 25,389) and an unpopulated GeoNames
+ * entry (population 0) — and the unpopulated one happened to sit closer to Attica's stored
+ * reference point, which is a single crude coordinate for the whole (large, irregular) region,
+ * not a true centroid. Distance-to-a-bad-reference-point is not a reliable disambiguator;
+ * "which of these is actually a place people mean" mostly is. Falls back to all candidates if
+ * none are within range, rather than guessing outside the region entirely.
+ */
+function pickBestInRegion(candidates: Settlement[], region: { lat: number; lon: number }): Settlement {
+  const nearby = candidates.filter((c) => distanceKm(region, c) <= REGION_PLAUSIBLE_KM);
+  const pool = nearby.length > 0 ? nearby : candidates;
+  return pool.reduce((best, candidate) => (candidate.population > best.population ? candidate : best));
 }
 
 /**
@@ -80,11 +118,7 @@ export function geocodeGreekLocation(settlement: string, regionGenitive: string 
 
   const candidates = settlementCandidates(settlement);
   if (candidates.length > 0) {
-    const best = region
-      ? candidates.reduce((a, b) => (distanceKm(region, a) <= distanceKm(region, b) ? a : b))
-      : candidates.length === 1
-        ? candidates[0]!
-        : null;
+    const best = region ? pickBestInRegion(candidates, region) : candidates.length === 1 ? candidates[0]! : null;
     if (best) return { latitude: best.lat, longitude: best.lon, precision: 'settlement' };
   }
 
