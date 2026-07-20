@@ -1,10 +1,10 @@
-import { GREECE_BBOX, MTG_FIR_SOURCE_ID } from '@pyrmap/shared';
+import { GREECE_BBOX } from '@pyrmap/shared';
 import { computeDedupKey } from '../domain/dedup.js';
 import { persistNewDetections } from './ingestService.js';
 import type { FireAlertSource } from '../ports/FireAlertSource.js';
 import type { FireRepository, NewDetectionRow } from '../ports/FireRepository.js';
 
-/** Latest N bulletins per poll; at 10-min cadence this covers ~30 min, dedup makes overlap free. */
+/** Latest N bulletins/slots per poll; dedup makes overlap across polls free. */
 const ALERTS_PER_POLL = 3;
 
 export interface AlertIngestResult {
@@ -13,13 +13,22 @@ export interface AlertIngestResult {
   error: string | null;
 }
 
+/** Identifies which geo source a batch of alert circles came from, for source/satellite/instrument tagging. */
+export interface AlertSourceConfig {
+  sourceId: string;
+  satellite: string;
+  instrument: string;
+}
+
 /**
- * Ingests Meteosat MTG fire-alert circles as geo-tier detections, dev-plan §5 conventions:
+ * Ingests geostationary fire-alert circles as geo-tier detections, dev-plan §5 conventions:
  * never throws, failures land in fetch_log. Bulletins are full-disc — only circles inside
- * the Greece bbox are kept.
+ * the Greece bbox are kept. Shared by every FireAlertSource (EUMETSAT CAP, LSA SAF HDF5, ...);
+ * sourceConfig carries the per-source identity so dedup keys and satellite/instrument tags differ.
  */
 export async function ingestFireAlerts(
   alertSource: FireAlertSource,
+  sourceConfig: AlertSourceConfig,
   repository: FireRepository,
   now: () => Date,
   onLog?: (message: string) => void,
@@ -32,7 +41,7 @@ export async function ingestFireAlerts(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     repository.recordFetchLog({
-      source: MTG_FIR_SOURCE_ID,
+      source: sourceConfig.sourceId,
       fetchedAt,
       httpStatus: null,
       rowsParsed: 0,
@@ -54,20 +63,20 @@ export async function ingestFireAlerts(
 
       rows.push({
         dedupKey: computeDedupKey({
-          source: MTG_FIR_SOURCE_ID,
+          source: sourceConfig.sourceId,
           latitude: circle.latitude,
           longitude: circle.longitude,
           acquiredAt: alert.acquiredAt,
         }),
         tier: 'geo',
-        source: MTG_FIR_SOURCE_ID,
+        source: sourceConfig.sourceId,
         latitude: circle.latitude,
         longitude: circle.longitude,
         acquiredAt: alert.acquiredAt,
-        frp: null, // the CAP bulletin reports location+radius only, no radiative power
-        confidence: null,
-        satellite: 'MTG-I1',
-        instrument: 'FCI',
+        frp: circle.frpMw ?? null,
+        confidence: circle.confidence != null ? `${Math.round(circle.confidence * 100)}%` : null,
+        satellite: sourceConfig.satellite,
+        instrument: sourceConfig.instrument,
         daynight: null,
         // radius r -> scan=track=2r so the frontend footprint radius ((scan+track)/4) equals r.
         scanKm: circle.radiusKm * 2,
@@ -77,10 +86,10 @@ export async function ingestFireAlerts(
   }
 
   const inserted = persistNewDetections(repository, 'geo', rows, now);
-  onLog?.(`source=${MTG_FIR_SOURCE_ID} alerts=${alerts.length} inGreece=${rows.length} inserted=${inserted}`);
+  onLog?.(`source=${sourceConfig.sourceId} alerts=${alerts.length} inGreece=${rows.length} inserted=${inserted}`);
 
   repository.recordFetchLog({
-    source: MTG_FIR_SOURCE_ID,
+    source: sourceConfig.sourceId,
     fetchedAt,
     httpStatus: 200,
     rowsParsed: rows.length,

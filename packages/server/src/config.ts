@@ -6,6 +6,9 @@ export interface Config {
   /** Optional EUMETSAT Data Store credentials; when both set, Meteosat MTG fire alerts feed the geo tier. */
   eumetsatConsumerKey: string | null;
   eumetsatConsumerSecret: string | null;
+  /** Optional LSA SAF Data Service credentials; when both set, the MSG FRP-PIXEL list feeds the geo tier. */
+  lsaSafUsername: string | null;
+  lsaSafPassword: string | null;
 }
 
 /** Reads and validates required env vars. Throws with a clear message if invalid. */
@@ -28,5 +31,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     logLevel: env.LOG_LEVEL ?? 'info',
     eumetsatConsumerKey: env.EUMETSAT_CONSUMER_KEY || null,
     eumetsatConsumerSecret: env.EUMETSAT_CONSUMER_SECRET || null,
+    lsaSafUsername: env.LSASAF_USERNAME || null,
+    lsaSafPassword: env.LSASAF_PASSWORD || null,
   };
 }

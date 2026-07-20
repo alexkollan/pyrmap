@@ -20,6 +20,9 @@ export const FIRMS_SOURCES = {
 /** Source id for Meteosat MTG FCI fire alerts ingested directly from EUMETSAT (geo tier, 10-min cadence). */
 export const MTG_FIR_SOURCE_ID = 'MTG_FCI_FIR';
 
+/** Source id for LSA SAF MSG SEVIRI FRP-PIXEL raw fire-detection list (geo tier, 15-min cadence, no significance threshold). */
+export const MSG_FRP_PIXEL_SOURCE_ID = 'MSG_FRP_PIXEL';
+
 /** Confirmation rule thresholds, dev-plan §6.3. */
 export const CONFIRMATION_MAX_DISTANCE_KM = 5;
 export const CONFIRMATION_MAX_TIME_HOURS = 6;

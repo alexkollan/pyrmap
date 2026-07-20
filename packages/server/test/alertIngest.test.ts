@@ -8,6 +8,7 @@ import { ingestFireAlerts } from '../src/services/alertIngestService.js';
 import type { FireAlert, FireAlertSource } from '../src/ports/FireAlertSource.js';
 
 const NOW = () => new Date('2026-07-18T09:45:00Z');
+const MTG_CONFIG = { sourceId: MTG_FIR_SOURCE_ID, satellite: 'MTG-I1', instrument: 'FCI' };
 
 class FakeAlertSource implements FireAlertSource {
   constructor(private readonly alerts: FireAlert[]) {}
@@ -44,7 +45,7 @@ afterEach(() => {
 
 describe('ingestFireAlerts', () => {
   it('inserts only Greece-bbox circles as unconfirmed geo detections with footprint from radius', async () => {
-    const result = await ingestFireAlerts(new FakeAlertSource([ALERT]), repo, NOW);
+    const result = await ingestFireAlerts(new FakeAlertSource([ALERT]), MTG_CONFIG, repo, NOW);
 
     expect(result).toEqual({ rowsParsed: 3, rowsInserted: 3, error: null });
 
@@ -59,8 +60,8 @@ describe('ingestFireAlerts', () => {
   });
 
   it('re-ingesting the same alert inserts 0 new rows', async () => {
-    await ingestFireAlerts(new FakeAlertSource([ALERT]), repo, NOW);
-    const second = await ingestFireAlerts(new FakeAlertSource([ALERT]), repo, NOW);
+    await ingestFireAlerts(new FakeAlertSource([ALERT]), MTG_CONFIG, repo, NOW);
+    const second = await ingestFireAlerts(new FakeAlertSource([ALERT]), MTG_CONFIG, repo, NOW);
     expect(second.rowsInserted).toBe(0);
   });
 
@@ -71,14 +72,14 @@ describe('ingestFireAlerts', () => {
       },
     };
 
-    const result = await ingestFireAlerts(failing, repo, NOW);
+    const result = await ingestFireAlerts(failing, MTG_CONFIG, repo, NOW);
 
     expect(result.error).toBe('EUMETSAT down');
     expect(repo.findLastFetchPerSource()[MTG_FIR_SOURCE_ID]).toMatchObject({ ok: false, rowsInserted: 0 });
   });
 
   it('feeds the confirmation machinery: a polar detection nearby confirms the MTG alert', async () => {
-    await ingestFireAlerts(new FakeAlertSource([ALERT]), repo, NOW);
+    await ingestFireAlerts(new FakeAlertSource([ALERT]), MTG_CONFIG, repo, NOW);
 
     // polar detection ~1km from the 38.212,23.911 alert, 40min later
     repo.insertDetections([

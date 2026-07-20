@@ -13,6 +13,8 @@ describe('loadConfig', () => {
       logLevel: 'info',
       eumetsatConsumerKey: null,
       eumetsatConsumerSecret: null,
+      lsaSafUsername: null,
+      lsaSafPassword: null,
     });
   });
 
@@ -20,6 +22,12 @@ describe('loadConfig', () => {
     const config = loadConfig({ ...validEnv, EUMETSAT_CONSUMER_KEY: 'ck', EUMETSAT_CONSUMER_SECRET: 'cs' });
     expect(config.eumetsatConsumerKey).toBe('ck');
     expect(config.eumetsatConsumerSecret).toBe('cs');
+  });
+
+  it('passes through LSA SAF credentials when both are set', () => {
+    const config = loadConfig({ ...validEnv, LSASAF_USERNAME: 'u', LSASAF_PASSWORD: 'p' });
+    expect(config.lsaSafUsername).toBe('u');
+    expect(config.lsaSafPassword).toBe('p');
   });
 
   it('rejects a missing FIRMS_MAP_KEY', () => {

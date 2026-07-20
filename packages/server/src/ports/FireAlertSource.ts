@@ -3,6 +3,10 @@ export interface FireAlertCircle {
   longitude: number;
   /** Detection footprint radius in km, as reported by the satellite operator. */
   radiusKm: number;
+  /** Fire Radiative Power in MW, when the source reports per-detection FRP (CAP alert circles don't). */
+  frpMw?: number | null;
+  /** Detection confidence 0-1, when the source reports it (CAP alert circles don't). */
+  confidence?: number | null;
 }
 
 export interface FireAlert {
