@@ -23,7 +23,7 @@ export interface SchedulerDeps {
   effectiveSources: Record<string, Tier>;
   /** Optional geostationary fire-alert feeds (EUMETSAT MTG, LSA SAF MSG, ...); each polled alongside the geo tier when present. */
   alertSources?: Array<{ source: FireAlertSource; config: AlertSourceConfig }>;
-  /** Optional text-based incident source (Fire Service X account); polled on its own, slower cadence — each poll is a paid API call. */
+  /** Optional text-based incident source (Fire Service X account); polled every minute on its own job — each poll is a paid API call, but since_id makes an empty poll (nothing new) free. */
   incidentIngestion?: { source: IncidentSource; repository: IncidentReportRepository; sourceId: string };
   now?: () => Date;
   onLog?: (message: string) => void;
@@ -40,7 +40,7 @@ export interface Scheduler {
 
 /**
  * Registers dev-plan §5's jobs: poll-geo (10min), poll-polar (30min, then a confirmation pass),
- * poll-incidents (15min, only when configured), decay (10min), retention (daily 03:00 UTC).
+ * poll-incidents (every 1min, only when configured), decay (10min), retention (daily 03:00 UTC).
  * Runs poll-geo and poll-polar once immediately.
  */
 export function startScheduler(deps: SchedulerDeps): Scheduler {
@@ -110,7 +110,7 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
   const tasks: ScheduledTask[] = [
     cron.schedule('*/10 * * * *', () => void pollGeo()),
     cron.schedule('*/30 * * * *', () => void pollPolar()),
-    cron.schedule('*/15 * * * *', () => void pollIncidents()),
+    cron.schedule('* * * * *', () => void pollIncidents()),
     cron.schedule('*/10 * * * *', decay),
     cron.schedule('0 3 * * *', retention),
   ];
