@@ -18,6 +18,7 @@ when a precise pass corroborates it. See `docs/pyrmap-dev-plan.md` for the full 
 | 🟠 **Solid orange circle with red border** | A fast Meteosat detection that a polar satellite later corroborated (within 5km and 6h) | High — two independent satellites agree |
 | 🟠 **Hollow, dashed, pulsing orange circle** | A fresh Meteosat detection, **not yet corroborated** | Early warning — position accurate to ~1–2km; could be a false positive |
 | *(nothing)* | An unconfirmed detection older than 12h expires and is hidden — with 3–4 polar passes having seen nothing there, it was very likely noise | — |
+| 📣 **Purple megaphone** | Not a satellite detection at all — a fire reported by the Greek Fire Service's own X account, geocoded automatically from the Greek post text | Lowest — human-written text, automatically geocoded; see "Reported fires" below |
 
 Click any marker for details: acquisition time (Greek local time + "X min ago"), the source
 satellite, **FRP** (Fire Radiative Power in megawatts — how intensely it's burning; a big
@@ -58,6 +59,22 @@ covers — the detection is somewhere inside that area, not necessarily at the d
 | **VIIRS NOAA-20 / NOAA-21 / Suomi NPP** | The precise tier: 375m resolution, each passes over Greece ~2×/day (~1–3h data latency) |
 | **MODIS Terra/Aqua** | The veteran precise tier: 1km resolution, ~2 passes/day |
 | **Unconfirmed hotspots** | Show/hide the not-yet-corroborated Meteosat detections as a class — untick for a "confirmed only" map. On by default: an early warning you can't see is an early warning you don't have |
+| **Reported fires (Fire Service X, unverified)** | Show/hide the purple megaphone markers described above |
+
+### Reported fires — how they're geocoded, and why it's not pixel-precise
+
+The Fire Service's posts (`@pyrosvestiki`) never include coordinates — just Greek place names,
+e.g. *"#Πυρκαγιά στο Κορωπί Αττικής"* ("...in Koropi, Attica"). PyrMap parses that text and
+matches it against a gazetteer of Greek settlements and regional units. This is automatic and
+occasionally coarse, by design it never fabricates a precise point it isn't sure of:
+
+- **Settlement match found** → pinned at that settlement (small marker).
+- **Only the region/regional-unit resolves** (e.g. the place name is too small or oddly spelled
+  to match) → pinned at the region's centroid instead — a deliberately larger, faded marker,
+  meaning "somewhere in this area," not "exactly here."
+- **Neither resolves** → the report is skipped entirely rather than guessed.
+
+Click a marker for the original Greek text and a link to the source post.
 
 **Overlays** — independent context layers drawn on top:
 
@@ -97,13 +114,17 @@ and the absence of the red "stale" chip to be sure).
 - **EUMETSAT** (optional but recommended — enables the fast Meteosat tier): register at
   https://eoportal.eumetsat.int, then copy your consumer key/secret from
   https://api.eumetsat.int/api-key/
+- **X API** (optional — enables the "reported fires" layer): create a project/app at
+  https://developer.x.com and generate a Bearer Token. **Unlike the others, this one is not
+  free** — X bills pay-per-use (~$0.005/tweet read); polling one account every 15 minutes costs
+  roughly $15–25/month. Skip it if you don't want that recurring cost.
 
 ### 2. Configure
 
 ```bash
 cp .env.example .env
-# edit .env: set FIRMS_MAP_KEY, and optionally LSASAF_USERNAME + LSASAF_PASSWORD and/or
-# EUMETSAT_CONSUMER_KEY + EUMETSAT_CONSUMER_SECRET
+# edit .env: set FIRMS_MAP_KEY, and optionally LSASAF_USERNAME + LSASAF_PASSWORD, and/or
+# EUMETSAT_CONSUMER_KEY + EUMETSAT_CONSUMER_SECRET, and/or X_BEARER_TOKEN
 ```
 
 ### 3. Run
@@ -155,7 +176,8 @@ For that, use the Docker image, or run `node packages/server/dist/index.js` with
 ## Project structure
 
 - `packages/shared` — cross-package types, constants, and pure geo helpers.
-- `packages/server` — Fastify backend: FIRMS + EUMETSAT ingestion, confirmation/decay/retention
+- `packages/server` — Fastify backend: FIRMS + EUMETSAT + LSA SAF ingestion, X-post geocoding
+  (Greek-text parsing and a bundled GeoNames-derived gazetteer), confirmation/decay/retention
   jobs, SQLite storage, the `/api/*` routes, and static serving of the built frontend.
 - `packages/web` — React + Leaflet frontend.
 
