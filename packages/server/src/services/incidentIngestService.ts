@@ -5,6 +5,12 @@ import type { IncidentReportRepository, NewIncidentReportRow } from '../ports/In
 
 /** Posts per poll when there's no since_id yet (first run); since_id makes subsequent polls cost near-zero. */
 const POSTS_PER_POLL = 10;
+const LOG_TEXT_MAX_CHARS = 120;
+
+function truncate(text: string): string {
+  const collapsed = text.replace(/\s+/g, ' ').trim();
+  return collapsed.length > LOG_TEXT_MAX_CHARS ? `${collapsed.slice(0, LOG_TEXT_MAX_CHARS)}…` : collapsed;
+}
 
 export interface IncidentIngestResult {
   postsFetched: number;
@@ -52,12 +58,19 @@ export async function ingestIncidentReports(
     const location = extractLocationPhrase(post.text);
     if (!location) {
       skipped++;
+      // These are the posts worth reading, not just counting — the account is written by a
+      // human, so the "standard-ish" template has real exceptions; each miss here is a
+      // candidate for a new extractLocationPhrase case (see docs/DECISIONS.md 2026-07-20).
+      onLog?.(`source=${sourceId} skip=no-location id=${post.externalId} text="${truncate(post.text)}"`);
       continue;
     }
 
     const geocoded = geocodeGreekLocation(location.settlement, location.regionGenitive);
     if (!geocoded) {
       skipped++;
+      onLog?.(
+        `source=${sourceId} skip=no-geocode id=${post.externalId} settlement="${location.settlement}" region="${location.regionGenitive ?? ''}" text="${truncate(post.text)}"`,
+      );
       continue;
     }
 
