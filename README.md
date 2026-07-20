@@ -139,8 +139,16 @@ and the absence of the red "stale" chip to be sure).
 cp .env.example .env
 # edit .env: set FIRMS_MAP_KEY, and optionally LSASAF_USERNAME + LSASAF_PASSWORD, and/or
 # EUMETSAT_CONSUMER_KEY + EUMETSAT_CONSUMER_SECRET, and/or X_BEARER_TOKEN, and/or
-# AUTH_USERNAME + AUTH_PASSWORD + SESSION_SECRET
+# AUTH_USERNAME + AUTH_PASSWORD + SESSION_SECRET, and/or HOST_DATA_DIR
 ```
+
+For any GitOps deployment (Portainer or similar, where the compose file's working directory is
+an ephemeral git clone rather than a path you control), also set `HOST_DATA_DIR` to an absolute
+host path, e.g. `/home/alex/docker/data/pyrmapdb/`. Without it the SQLite data volume defaults to
+a relative `./data`, which resolves *inside* that ephemeral clone directory and is deleted the
+next time the stack is recreated — silently taking the database with it. The directory is created
+automatically if it doesn't exist; plain local `docker compose up` (not through GitOps) doesn't
+need this set at all.
 
 ### Access control
 
@@ -182,6 +190,19 @@ pulls the repo and rebuilds the stack in place — no separate CI build or conta
 involved, the build runs on the same host that serves the app. Requires a Portainer stack
 configured with GitOps auto-updates (webhook mode) pointed at this repo, and a
 `PORTAINER_WEBHOOK_URL` repository secret in GitHub Actions.
+
+The GitHub repo must stay **public** for this to be reliable: Portainer CE (confirmed through
+2.43.0 STS, tracked upstream as issue #10340) has an open bug where editing/redeploying an
+existing Git-sourced stack unreliably clears or mismanages the saved Git PAT, producing
+"authentication required: Repository not found" even with a correct token — unrelated to token
+scope, username, or anything on this repo's side. A public repo needs no git credentials to
+clone, so the bug simply can't trigger. No secret has ever been committed here, so this is a
+safe tradeoff, not a shortcut.
+
+When you need to push an env-var-only change (no new commit, e.g. after editing the stack's
+environment variables directly in Portainer's UI), the webhook won't help — it only fires on a
+new commit hash. Use Portainer's **"Pull and redeploy"** button (not "Update the stack," which
+doesn't exist in this version) to force a redeploy regardless of hash.
 
 ## Local development
 
