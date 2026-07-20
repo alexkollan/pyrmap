@@ -53,7 +53,8 @@ covers — the detection is somewhere inside that area, not necessarily at the d
 
 | Source | What it is |
 |---|---|
-| **Meteosat MTG (geo, 10-min)** | The fast tier: Meteosat-12's Fire Coverage Instrument, full scan every 10 minutes, direct from EUMETSAT. Source of all "unconfirmed" markers |
+| **Meteosat MTG alerts (geo, 10-min)** | EUMETSAT's curated fire-alert bulletin, full scan every 10 minutes. Applies its own significance threshold, so it tends to miss small fires |
+| **Meteosat MSG raw pixels (geo, 15-min)** | LSA SAF's unfiltered fire-pixel list — every detection, no significance threshold. Slightly slower cadence than the alert feed above, but catches small fires it misses |
 | **VIIRS NOAA-20 / NOAA-21 / Suomi NPP** | The precise tier: 375m resolution, each passes over Greece ~2×/day (~1–3h data latency) |
 | **MODIS Terra/Aqua** | The veteran precise tier: 1km resolution, ~2 passes/day |
 | **Unconfirmed hotspots** | Show/hide the not-yet-corroborated Meteosat detections as a class — untick for a "confirmed only" map. On by default: an early warning you can't see is an early warning you don't have |
@@ -91,6 +92,8 @@ and the absence of the red "stale" chip to be sure).
 ### 1. Get API keys
 
 - **NASA FIRMS** (required): sign up free at https://firms.modaps.eosdis.nasa.gov/api/ → `MAP_KEY`
+- **LSA SAF** (optional but recommended — the geo tier's small-fire-sensitive source): register at
+  https://mokey.lsasvcs.ipma.pt/auth/signup (instant, email verification only)
 - **EUMETSAT** (optional but recommended — enables the fast Meteosat tier): register at
   https://eoportal.eumetsat.int, then copy your consumer key/secret from
   https://api.eumetsat.int/api-key/
@@ -99,7 +102,8 @@ and the absence of the red "stale" chip to be sure).
 
 ```bash
 cp .env.example .env
-# edit .env: set FIRMS_MAP_KEY, and optionally EUMETSAT_CONSUMER_KEY + EUMETSAT_CONSUMER_SECRET
+# edit .env: set FIRMS_MAP_KEY, and optionally LSASAF_USERNAME + LSASAF_PASSWORD and/or
+# EUMETSAT_CONSUMER_KEY + EUMETSAT_CONSUMER_SECRET
 ```
 
 ### 3. Run
