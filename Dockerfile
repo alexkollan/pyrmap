@@ -17,6 +17,8 @@ COPY --from=build /app/packages/web/dist ./public
 
 ENV NODE_ENV=production
 EXPOSE 8080
-HEALTHCHECK --interval=60s CMD wget -qO- http://localhost:8080/api/health || exit 1
+# node:22-slim doesn't ship wget or curl; using node itself (always present) avoids installing
+# an extra package just for this. Was silently marking the container "unhealthy" unconditionally.
+HEALTHCHECK --interval=60s CMD node -e "require('http').get('http://localhost:8080/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
 
 CMD ["node", "dist/index.js"]
