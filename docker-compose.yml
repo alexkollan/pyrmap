@@ -3,7 +3,20 @@ services:
     build: .
     container_name: pyrmap
     restart: unless-stopped
-    env_file: .env
+    # ${VAR} interpolation, not env_file: a literal .env file only exists for local `docker
+    # compose` runs (auto-read from the project directory) — Portainer's GitOps deploys clone a
+    # fresh checkout with no .env file, but do inject its own "Environment variables" stack
+    # config into the process that runs compose, which this reads from instead.
+    environment:
+      - FIRMS_MAP_KEY=${FIRMS_MAP_KEY}
+      - PORT=${PORT:-8080}
+      - DB_PATH=${DB_PATH:-/data/pyrmap.db}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - EUMETSAT_CONSUMER_KEY=${EUMETSAT_CONSUMER_KEY:-}
+      - EUMETSAT_CONSUMER_SECRET=${EUMETSAT_CONSUMER_SECRET:-}
+      - LSASAF_USERNAME=${LSASAF_USERNAME:-}
+      - LSASAF_PASSWORD=${LSASAF_PASSWORD:-}
+      - X_BEARER_TOKEN=${X_BEARER_TOKEN:-}
     ports:
       - "48080:8080"
     volumes:
