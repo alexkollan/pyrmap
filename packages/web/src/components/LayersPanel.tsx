@@ -51,6 +51,14 @@ export function LayersPanel({ activeSources, prefs, onChange, viewMode }: Layers
               </label>
             ))}
             {activeSources.length === 0 && <div className="layers-empty">No detections in window</div>}
+            <label className="layers-row">
+              <input
+                type="checkbox"
+                checked={prefs.showUnconfirmed}
+                onChange={() => onChange({ ...prefs, showUnconfirmed: !prefs.showUnconfirmed })}
+              />
+              Unconfirmed hotspots
+            </label>
           </div>
 
           <div className="layers-group">

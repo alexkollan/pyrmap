@@ -45,8 +45,11 @@ export function FireMap({ polar, geo, theme, viewMode, prefs }: FireMapProps): J
     [polar, prefs.hiddenSources],
   );
   const visibleGeo = useMemo(
-    () => geo.filter((d) => !prefs.hiddenSources.includes(d.source)),
-    [geo, prefs.hiddenSources],
+    () =>
+      geo.filter(
+        (d) => !prefs.hiddenSources.includes(d.source) && (prefs.showUnconfirmed || d.status !== 'unconfirmed'),
+      ),
+    [geo, prefs.hiddenSources, prefs.showUnconfirmed],
   );
 
   const clusters = useMemo(

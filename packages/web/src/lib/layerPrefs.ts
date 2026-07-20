@@ -10,6 +10,8 @@ export interface LayerPrefs {
   effisBurntAreas: boolean;
   /** Wind arrows at fire-cluster centroids (Open-Meteo). */
   wind: boolean;
+  /** Show geo-tier detections still awaiting polar corroboration (default true). */
+  showUnconfirmed: boolean;
   /** Area-view clustering distance in km, user-tunable. */
   clusterKm: number;
 }
@@ -19,6 +21,7 @@ export const DEFAULT_LAYER_PREFS: LayerPrefs = {
   effisHotspots: false,
   effisBurntAreas: false,
   wind: false,
+  showUnconfirmed: true,
   clusterKm: FIRE_CLUSTER_DISTANCE_KM,
 };
 
@@ -36,6 +39,7 @@ export function loadStoredLayerPrefs(): LayerPrefs {
       effisHotspots: parsed.effisHotspots === true,
       effisBurntAreas: parsed.effisBurntAreas === true,
       wind: parsed.wind === true,
+      showUnconfirmed: parsed.showUnconfirmed !== false, // default true — hiding early warnings must be opt-in
       clusterKm: clampClusterKm(typeof parsed.clusterKm === 'number' ? parsed.clusterKm : DEFAULT_LAYER_PREFS.clusterKm),
     };
   } catch {
