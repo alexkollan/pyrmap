@@ -27,6 +27,8 @@ export interface SchedulerDeps {
   incidentIngestion?: { source: IncidentSource; repository: IncidentReportRepository; sourceId: string };
   now?: () => Date;
   onLog?: (message: string) => void;
+  /** Called whenever a poll/decay/confirmation pass actually changes stored data — drives /api/events (SSE). */
+  onUpdate?: () => void;
 }
 
 export interface Scheduler {
@@ -52,8 +54,10 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
     .filter(([, tier]) => tier === 'polar')
     .map(([id]) => id);
 
-  const ingestOne = (sourceId: string, tier: Tier): Promise<void> =>
-    ingestSource({
+  // Each ingest path reports whether it actually inserted anything, so the polls below only
+  // fire onUpdate (and wake connected browsers) when there's really something new to show.
+  const ingestOne = async (sourceId: string, tier: Tier): Promise<boolean> => {
+    const result = await ingestSource({
       dataSource: deps.dataSource,
       repository: deps.repository,
       sourceId,
@@ -62,37 +66,47 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
       dayRange: DAY_RANGE,
       now,
       onLog: deps.onLog,
-    }).then(() => undefined);
+    });
+    return result.rowsInserted > 0;
+  };
 
   async function pollGeo(): Promise<void> {
+    let changed = false;
     for (const sourceId of geoSourceIds) {
-      await ingestOne(sourceId, 'geo');
+      if (await ingestOne(sourceId, 'geo')) changed = true;
     }
     for (const { source, config } of deps.alertSources ?? []) {
-      await ingestFireAlerts(source, config, deps.repository, now, deps.onLog);
+      const result = await ingestFireAlerts(source, config, deps.repository, now, deps.onLog);
+      if (result.rowsInserted > 0) changed = true;
     }
+    if (changed) deps.onUpdate?.();
   }
 
   async function pollIncidents(): Promise<void> {
     const incidents = deps.incidentIngestion;
     if (!incidents) return;
-    await ingestIncidentReports(incidents.source, incidents.repository, incidents.sourceId, now, deps.onLog);
+    const result = await ingestIncidentReports(incidents.source, incidents.repository, incidents.sourceId, now, deps.onLog);
+    if (result.rowsInserted > 0) deps.onUpdate?.();
   }
 
   async function pollPolar(): Promise<void> {
+    let changed = false;
     for (const sourceId of polarSourceIds) {
-      await ingestOne(sourceId, 'polar');
+      if (await ingestOne(sourceId, 'polar')) changed = true;
     }
     const { confirmed } = runConfirmationPass(deps.repository, now);
     if (confirmed > 0) {
       deps.onLog?.(`confirmation pass: confirmed=${confirmed}`);
+      changed = true;
     }
+    if (changed) deps.onUpdate?.();
   }
 
   function decay(): void {
     const { expired } = runDecayPass(deps.repository, now);
     if (expired > 0) {
       deps.onLog?.(`decay pass: expired=${expired}`);
+      deps.onUpdate?.();
     }
   }
 

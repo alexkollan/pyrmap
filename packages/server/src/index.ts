@@ -10,6 +10,7 @@ import { LsaSafFrpPixelClient } from './adapters/lsasaf/LsaSafFrpPixelClient.js'
 import { PyrosvestikiXClient } from './adapters/pyrosvestiki/PyrosvestikiXClient.js';
 import { resolveSources } from './domain/sourceResolution.js';
 import { startScheduler } from './jobs/scheduler.js';
+import { UpdateBus } from './jobs/updateBus.js';
 import type { AlertSourceConfig } from './services/alertIngestService.js';
 import type { FireAlertSource } from './ports/FireAlertSource.js';
 import type { FireDataSource } from './ports/FireDataSource.js';
@@ -34,7 +35,8 @@ async function main(): Promise<void> {
     };
   }
 
-  const app = await buildApp(config, repository, undefined, undefined, incidentRepository);
+  const updateBus = new UpdateBus();
+  const app = await buildApp(config, repository, undefined, undefined, incidentRepository, updateBus);
 
   const dataSource: FireDataSource = process.env.FIRMS_MOCK
     ? new MockFireDataSource()
@@ -85,6 +87,7 @@ async function main(): Promise<void> {
     alertSources,
     incidentIngestion,
     onLog: (message) => app.log.info(message),
+    onUpdate: () => updateBus.publish(),
   });
 
   try {

@@ -9,6 +9,8 @@ import type { IncidentReportRepository } from './ports/IncidentReportRepository.
 import { healthRoutes } from './routes/health.js';
 import { firesRoutes } from './routes/fires.js';
 import { statusRoutes } from './routes/status.js';
+import { eventsRoutes } from './routes/events.js';
+import { UpdateBus } from './jobs/updateBus.js';
 
 // dist/app.js -> ../public is /app/public in the runtime image (Dockerfile copies web's build there).
 const DEFAULT_PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '../public');
@@ -20,12 +22,14 @@ export async function buildApp(
   now: () => Date = () => new Date(),
   publicDir: string = DEFAULT_PUBLIC_DIR,
   incidentRepository?: IncidentReportRepository,
+  updateBus: UpdateBus = new UpdateBus(),
 ): Promise<FastifyInstance> {
   const app = Fastify({ logger: { level: config.logLevel } });
 
   await app.register(healthRoutes(repository));
   await app.register(firesRoutes(repository, now, incidentRepository));
   await app.register(statusRoutes(repository, now));
+  await app.register(eventsRoutes(updateBus));
 
   // Serves the built frontend, dev-plan §10.1 pt 3. Skipped if the frontend hasn't been built (e.g. server-only dev).
   if (existsSync(publicDir)) {

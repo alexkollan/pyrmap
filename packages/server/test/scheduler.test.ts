@@ -53,4 +53,25 @@ describe('startScheduler', () => {
     expect(callsBySource.get('VIIRS_NOAA20_NRT')?.every((r) => r.tier === 'polar')).toBe(true);
     expect(insertSpy).toHaveBeenCalledTimes(2);
   });
+
+  it('calls onUpdate when a poll inserts new rows, but not when a re-poll finds nothing new', async () => {
+    const dataSource = new FakeFireDataSource({ VIIRS_NOAA20_NRT: readFixture('viirs_sample.csv') });
+    const onUpdate = vi.fn();
+
+    const scheduler = startScheduler({
+      dataSource,
+      repository: repo,
+      effectiveSources: { VIIRS_NOAA20_NRT: 'polar' },
+      now: () => new Date('2026-07-15T12:00:00Z'),
+      onUpdate,
+    });
+    scheduler.stop();
+    // startScheduler's own immediate pollPolar() inserts the fixture rows -> onUpdate fires.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(onUpdate).toHaveBeenCalled();
+
+    onUpdate.mockClear();
+    await scheduler.pollPolar(); // same fixture again — dedup means 0 new rows this time
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
 });
