@@ -42,6 +42,21 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE detections ADD COLUMN scan_km REAL;
   ALTER TABLE detections ADD COLUMN track_km REAL;
   `,
+  `
+  CREATE TABLE incident_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    external_id TEXT NOT NULL UNIQUE,
+    source TEXT NOT NULL,
+    text TEXT NOT NULL,
+    url TEXT NOT NULL,
+    published_at TEXT NOT NULL,
+    latitude REAL NOT NULL,
+    longitude REAL NOT NULL,
+    precision TEXT NOT NULL CHECK (precision IN ('settlement','regional_unit')),
+    ingested_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+  );
+  CREATE INDEX idx_incident_reports_published ON incident_reports (published_at);
+  `,
 ];
 
 /** Applies pending migrations in order, tracked by index in a `migrations` table. */

@@ -23,10 +23,26 @@ export interface GeoDetection extends Detection {
   confirmedBy: number | null;
 }
 
+/** How precisely an incident report's location was resolved from free-text Greek. */
+export type IncidentPrecision = 'settlement' | 'regional_unit';
+
+/** A fire incident reported by an external source (e.g. the Fire Service's X account), geocoded from free text. */
+export interface IncidentReport {
+  id: number;
+  source: string;
+  text: string; // raw original-language post text
+  url: string; // link to the original post
+  publishedAt: string; // ISO 8601 UTC
+  latitude: number;
+  longitude: number;
+  precision: IncidentPrecision;
+}
+
 export interface FiresResponse {
   generatedAt: string; // ISO 8601 UTC
   polar: Detection[];
   geo: GeoDetection[];
+  incidents: IncidentReport[];
 }
 
 export interface SourceFetchStatus {

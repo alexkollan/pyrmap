@@ -31,6 +31,18 @@ describe('loadStoredLayerPrefs', () => {
     expect(loadStoredLayerPrefs().showUnconfirmed).toBe(false);
   });
 
+  it('defaults to showing reported incidents, and keeps that default for pre-existing stored prefs', () => {
+    stubStorage(null);
+    expect(loadStoredLayerPrefs().reportedIncidents).toBe(true);
+    stubStorage(JSON.stringify({ hiddenSources: [] }));
+    expect(loadStoredLayerPrefs().reportedIncidents).toBe(true);
+  });
+
+  it('respects an explicit opt-out of reported incidents', () => {
+    stubStorage(JSON.stringify({ reportedIncidents: false }));
+    expect(loadStoredLayerPrefs().reportedIncidents).toBe(false);
+  });
+
   it('returns defaults when storage holds junk', () => {
     stubStorage('not json{');
     expect(loadStoredLayerPrefs()).toEqual(DEFAULT_LAYER_PREFS);

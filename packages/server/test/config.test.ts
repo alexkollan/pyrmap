@@ -15,6 +15,7 @@ describe('loadConfig', () => {
       eumetsatConsumerSecret: null,
       lsaSafUsername: null,
       lsaSafPassword: null,
+      xBearerToken: null,
     });
   });
 
@@ -28,6 +29,11 @@ describe('loadConfig', () => {
     const config = loadConfig({ ...validEnv, LSASAF_USERNAME: 'u', LSASAF_PASSWORD: 'p' });
     expect(config.lsaSafUsername).toBe('u');
     expect(config.lsaSafPassword).toBe('p');
+  });
+
+  it('passes through the X bearer token when set', () => {
+    const config = loadConfig({ ...validEnv, X_BEARER_TOKEN: 'tok' });
+    expect(config.xBearerToken).toBe('tok');
   });
 
   it('rejects a missing FIRMS_MAP_KEY', () => {

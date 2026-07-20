@@ -12,6 +12,8 @@ export interface LayerPrefs {
   wind: boolean;
   /** Show geo-tier detections still awaiting polar corroboration (default true). */
   showUnconfirmed: boolean;
+  /** Show reported incidents (Fire Service X account, geocoded from text — not satellite-confirmed). */
+  reportedIncidents: boolean;
   /** Area-view clustering distance in km, user-tunable. */
   clusterKm: number;
 }
@@ -22,6 +24,7 @@ export const DEFAULT_LAYER_PREFS: LayerPrefs = {
   effisBurntAreas: false,
   wind: false,
   showUnconfirmed: true,
+  reportedIncidents: true,
   clusterKm: FIRE_CLUSTER_DISTANCE_KM,
 };
 
@@ -40,6 +43,7 @@ export function loadStoredLayerPrefs(): LayerPrefs {
       effisBurntAreas: parsed.effisBurntAreas === true,
       wind: parsed.wind === true,
       showUnconfirmed: parsed.showUnconfirmed !== false, // default true — hiding early warnings must be opt-in
+      reportedIncidents: parsed.reportedIncidents !== false, // default true, same reasoning
       clusterKm: clampClusterKm(typeof parsed.clusterKm === 'number' ? parsed.clusterKm : DEFAULT_LAYER_PREFS.clusterKm),
     };
   } catch {

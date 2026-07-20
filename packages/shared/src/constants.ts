@@ -23,6 +23,9 @@ export const MTG_FIR_SOURCE_ID = 'MTG_FCI_FIR';
 /** Source id for LSA SAF MSG SEVIRI FRP-PIXEL raw fire-detection list (geo tier, 15-min cadence, no significance threshold). */
 export const MSG_FRP_PIXEL_SOURCE_ID = 'MSG_FRP_PIXEL';
 
+/** Source id for the Greek Fire Service's X account, geocoded from free text (not a satellite detection). */
+export const PYROSVESTIKI_SOURCE_ID = 'PYROSVESTIKI_X';
+
 /** Confirmation rule thresholds, dev-plan §6.3. */
 export const CONFIRMATION_MAX_DISTANCE_KM = 5;
 export const CONFIRMATION_MAX_TIME_HOURS = 6;

@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import { MapContainer, TileLayer, WMSTileLayer } from 'react-leaflet';
-import type { Detection, GeoDetection } from '@pyrmap/shared';
+import type { Detection, GeoDetection, IncidentReport } from '@pyrmap/shared';
 import { GeoMarker, PolarMarker } from './FireMarker.js';
 import { FireClusterShape } from './FireClusterShape.js';
 import { WindLayer } from './WindLayer.js';
+import { IncidentMarker } from './IncidentMarker.js';
 import type { Theme } from '../lib/theme.js';
 import type { ViewMode } from '../lib/viewMode.js';
 import type { LayerPrefs } from '../lib/layerPrefs.js';
@@ -32,12 +33,13 @@ const EFFIS_ATTRIBUTION = '&copy; <a href="https://forest-fire.emergency.coperni
 export interface FireMapProps {
   polar: Detection[];
   geo: GeoDetection[];
+  incidents: IncidentReport[];
   theme: Theme;
   viewMode: ViewMode;
   prefs: LayerPrefs;
 }
 
-export function FireMap({ polar, geo, theme, viewMode, prefs }: FireMapProps): JSX.Element {
+export function FireMap({ polar, geo, incidents, theme, viewMode, prefs }: FireMapProps): JSX.Element {
   const tileLayer = TILE_LAYERS[theme];
 
   const visiblePolar = useMemo(
@@ -92,6 +94,9 @@ export function FireMap({ polar, geo, theme, viewMode, prefs }: FireMapProps): J
       )}
 
       {prefs.wind && <WindLayer clusters={clusters} />}
+
+      {prefs.reportedIncidents &&
+        incidents.map((incident) => <IncidentMarker key={incident.id} incident={incident} />)}
     </MapContainer>
   );
 }

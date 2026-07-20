@@ -2,12 +2,15 @@ import cron, { type ScheduledTask } from 'node-cron';
 import { GREECE_BBOX_STRING, type Tier } from '@pyrmap/shared';
 import { ingestSource } from '../services/ingestService.js';
 import { ingestFireAlerts, type AlertSourceConfig } from '../services/alertIngestService.js';
+import { ingestIncidentReports } from '../services/incidentIngestService.js';
 import { runConfirmationPass } from '../services/confirmationService.js';
 import { runDecayPass } from '../services/decayService.js';
 import { runRetention } from '../services/retentionService.js';
 import type { FireAlertSource } from '../ports/FireAlertSource.js';
 import type { FireDataSource } from '../ports/FireDataSource.js';
 import type { FireRepository } from '../ports/FireRepository.js';
+import type { IncidentSource } from '../ports/IncidentSource.js';
+import type { IncidentReportRepository } from '../ports/IncidentReportRepository.js';
 
 // FIRMS dayRange counts UTC *calendar* days (1 = today only), not trailing 24h — verified live
 // 2026-07-18: with 1, a 23:20 UTC pass vanishes right after midnight. 2 keeps a full trailing day
@@ -20,6 +23,8 @@ export interface SchedulerDeps {
   effectiveSources: Record<string, Tier>;
   /** Optional geostationary fire-alert feeds (EUMETSAT MTG, LSA SAF MSG, ...); each polled alongside the geo tier when present. */
   alertSources?: Array<{ source: FireAlertSource; config: AlertSourceConfig }>;
+  /** Optional text-based incident source (Fire Service X account); polled on its own, slower cadence — each poll is a paid API call. */
+  incidentIngestion?: { source: IncidentSource; repository: IncidentReportRepository; sourceId: string };
   now?: () => Date;
   onLog?: (message: string) => void;
 }
@@ -28,13 +33,15 @@ export interface Scheduler {
   stop: () => void;
   pollGeo: () => Promise<void>;
   pollPolar: () => Promise<void>;
+  pollIncidents: () => Promise<void>;
   decay: () => void;
   retention: () => void;
 }
 
 /**
  * Registers dev-plan §5's jobs: poll-geo (10min), poll-polar (30min, then a confirmation pass),
- * decay (10min), retention (daily 03:00 UTC). Runs poll-geo and poll-polar once immediately.
+ * poll-incidents (15min, only when configured), decay (10min), retention (daily 03:00 UTC).
+ * Runs poll-geo and poll-polar once immediately.
  */
 export function startScheduler(deps: SchedulerDeps): Scheduler {
   const now = deps.now ?? (() => new Date());
@@ -66,6 +73,12 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
     }
   }
 
+  async function pollIncidents(): Promise<void> {
+    const incidents = deps.incidentIngestion;
+    if (!incidents) return;
+    await ingestIncidentReports(incidents.source, incidents.repository, incidents.sourceId, now, deps.onLog);
+  }
+
   async function pollPolar(): Promise<void> {
     for (const sourceId of polarSourceIds) {
       await ingestOne(sourceId, 'polar');
@@ -84,24 +97,33 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
   }
 
   function retention(): void {
-    const { deletedDetections, deletedFetchLogs } = runRetention(deps.repository, now);
-    deps.onLog?.(`retention: deletedDetections=${deletedDetections} deletedFetchLogs=${deletedFetchLogs}`);
+    const { deletedDetections, deletedFetchLogs, deletedIncidentReports } = runRetention(
+      deps.repository,
+      now,
+      deps.incidentIngestion?.repository,
+    );
+    deps.onLog?.(
+      `retention: deletedDetections=${deletedDetections} deletedFetchLogs=${deletedFetchLogs} deletedIncidentReports=${deletedIncidentReports}`,
+    );
   }
 
   const tasks: ScheduledTask[] = [
     cron.schedule('*/10 * * * *', () => void pollGeo()),
     cron.schedule('*/30 * * * *', () => void pollPolar()),
+    cron.schedule('*/15 * * * *', () => void pollIncidents()),
     cron.schedule('*/10 * * * *', decay),
     cron.schedule('0 3 * * *', retention),
   ];
 
   void pollGeo();
   void pollPolar();
+  void pollIncidents();
 
   return {
     stop: () => tasks.forEach((task) => task.stop()),
     pollGeo,
     pollPolar,
+    pollIncidents,
     decay,
     retention,
   };

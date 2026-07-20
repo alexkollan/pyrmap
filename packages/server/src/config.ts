@@ -9,6 +9,8 @@ export interface Config {
   /** Optional LSA SAF Data Service credentials; when both set, the MSG FRP-PIXEL list feeds the geo tier. */
   lsaSafUsername: string | null;
   lsaSafPassword: string | null;
+  /** Optional X API bearer token; when set, the Fire Service's X posts feed the incident-reports layer. */
+  xBearerToken: string | null;
 }
 
 /** Reads and validates required env vars. Throws with a clear message if invalid. */
@@ -33,5 +35,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     eumetsatConsumerSecret: env.EUMETSAT_CONSUMER_SECRET || null,
     lsaSafUsername: env.LSASAF_USERNAME || null,
     lsaSafPassword: env.LSASAF_PASSWORD || null,
+    xBearerToken: env.X_BEARER_TOKEN || null,
   };
 }

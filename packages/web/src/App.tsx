@@ -59,6 +59,7 @@ export function App(): JSX.Element {
       <FireMap
         polar={data?.polar ?? []}
         geo={data?.geo ?? []}
+        incidents={data?.incidents ?? []}
         theme={theme}
         viewMode={viewMode}
         prefs={layerPrefs}

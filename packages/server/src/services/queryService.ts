@@ -1,5 +1,6 @@
 import type { FiresResponse, StatusResponse } from '@pyrmap/shared';
 import type { FireRepository } from '../ports/FireRepository.js';
+import type { IncidentReportRepository } from '../ports/IncidentReportRepository.js';
 
 const MS_PER_HOUR = 60 * 60 * 1000;
 const STATUS_POLAR_WINDOW_HOURS = 24;
@@ -10,8 +11,12 @@ export interface GetFiresParams {
   now: () => Date;
 }
 
-/** Builds the GET /api/fires response, dev-plan §7. */
-export function getFires(repository: FireRepository, params: GetFiresParams): FiresResponse {
+/** Builds the GET /api/fires response, dev-plan §7. incidentRepository is optional — absent when no incident source is configured. */
+export function getFires(
+  repository: FireRepository,
+  params: GetFiresParams,
+  incidentRepository?: IncidentReportRepository,
+): FiresResponse {
   const nowDate = params.now();
   const sinceIso = new Date(nowDate.getTime() - params.hours * MS_PER_HOUR).toISOString();
 
@@ -19,6 +24,7 @@ export function getFires(repository: FireRepository, params: GetFiresParams): Fi
     generatedAt: nowDate.toISOString(),
     polar: repository.findPolarDetectionsSince(sinceIso),
     geo: repository.findGeoDetectionsSince(sinceIso, params.includeExpired),
+    incidents: incidentRepository?.findIncidentReportsSince(sinceIso) ?? [],
   };
 }
 

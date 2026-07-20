@@ -60,6 +60,14 @@ export function LayersPanel({ activeSources, prefs, onChange, viewMode }: Layers
               />
               Unconfirmed hotspots
             </label>
+            <label className="layers-row">
+              <input
+                type="checkbox"
+                checked={prefs.reportedIncidents}
+                onChange={() => onChange({ ...prefs, reportedIncidents: !prefs.reportedIncidents })}
+              />
+              Reported fires (Fire Service X, unverified)
+            </label>
           </div>
 
           <div className="layers-group">
