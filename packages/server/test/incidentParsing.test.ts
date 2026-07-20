@@ -50,6 +50,15 @@ describe('extractLocationPhrase', () => {
     expect(extractLocationPhrase(text)).toEqual({ settlement: 'Παλαιοχώρι', regionGenitive: 'Φθιώτιδας' });
   });
 
+  it('does not let an abbreviation period (Ε.Ι.Χ., Ν.) truncate the location phrase', () => {
+    // Real post, 2026-07-20: an earlier attempt to fix the Paleochori bug above by scoping to
+    // "the first sentence" broke this one — the first period in the whole text is inside "Ε.Ι.Χ.",
+    // long before the real location. The place name itself also starts with an abbreviation
+    // ("Ν." = Νέα/"New"), which must survive as part of the settlement, not be cut off at its dot.
+    const text = 'Κατεσβέσθη #πυρκαγιά σε Ε.Ι.Χ. αυτοκίνητο σε περιοχή του δήμου Ν. Σμύρνης Αττικής. Επιχείρησαν 6 #πυροσβέστες με 2 οχήματα.';
+    expect(extractLocationPhrase(text)).toEqual({ settlement: 'Ν. Σμύρνης', regionGenitive: 'Αττικής' });
+  });
+
   it('strips the leading "νήσος" qualifier so an island name resolves as a single settlement token', () => {
     expect(extractLocationPhrase('Κατεσβέσθη #πυρκαγιά σε ΕΙΧ όχημα, στη νήσος Ρόδος.')).toEqual({
       settlement: 'Ρόδος',

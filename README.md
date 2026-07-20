@@ -12,13 +12,20 @@ when a precise pass corroborates it. See `docs/pyrmap-dev-plan.md` for the full 
 
 ### The markers (Point view)
 
-| Marker | Meaning | Trust level |
+Two independent visual channels: **color = how old**, **shape/border = how trusted**.
+
+**Color** fades along the same gradient everywhere on the map — red → orange → green → blue →
+grey — from the moment a fire was detected/reported to fully grey at the max age. Satellite
+markers use a 24-hour scale (grey at 24h+); reported-fire pins (below) use a compressed 12-hour
+scale, so age is comparable at a glance without the two data sources fighting over one clock.
+
+| Shape | Meaning | Trust level |
 |---|---|---|
-| 🔴 **Solid red circle** | Detection by a polar satellite (VIIRS 375m / MODIS 1km) | High — these instruments are precise enough to be trusted on sight |
-| 🟠 **Solid orange circle with red border** | A fast Meteosat detection that a polar satellite later corroborated (within 5km and 6h) | High — two independent satellites agree |
-| 🟠 **Hollow, dashed, pulsing orange circle** | A fresh Meteosat detection, **not yet corroborated** | Early warning — position accurate to ~1–2km; could be a false positive |
+| **Solid circle** | Detection by a polar satellite (VIIRS 375m / MODIS 1km) | High — these instruments are precise enough to be trusted on sight |
+| **Solid circle with red border** | A fast Meteosat detection that a polar satellite later corroborated (within 5km and 6h) | High — two independent satellites agree |
+| **Hollow, dashed, pulsing circle** | A fresh Meteosat detection, **not yet corroborated** | Early warning — position accurate to ~1–2km; could be a false positive |
 | *(nothing)* | An unconfirmed detection older than 12h expires and is hidden — with 3–4 polar passes having seen nothing there, it was very likely noise | — |
-| 📣 **Purple megaphone** | Not a satellite detection at all — a fire reported by the Greek Fire Service's own X account, geocoded automatically from the Greek post text | Lowest — human-written text, automatically geocoded; see "Reported fires" below |
+| 📣 **Map pin (flame icon)** | Not a satellite detection at all — a fire reported by the Greek Fire Service's own X account, geocoded automatically from the Greek post text | Lowest — human-written text, automatically geocoded; see "Reported fires" below |
 
 Click any marker for details: acquisition time (Greek local time + "X min ago"), the source
 satellite, **FRP** (Fire Radiative Power in megawatts — how intensely it's burning; a big
@@ -43,7 +50,7 @@ covers — the detection is somewhere inside that area, not necessarily at the d
 |---|---|
 | **Last updated HH:MM** | When the browser last fetched data successfully |
 | **Time window** (6h/12h/24h/48h/72h) | How far back detections are shown. Default 24h. A fire "disappearing" often just means it aged out of the window |
-| **Refresh** | Manual re-fetch. The map also auto-refreshes every 5 minutes (green dot = refresh in progress) |
+| **Refresh** | Manual re-fetch. The map also updates live — the server pushes a signal the instant it ingests something new (via Server-Sent Events), so you don't need to press this or wait for the 5-minute fallback poll under normal conditions |
 | **Light/Dark mode** | Basemap + UI theme. Dark is the default |
 | **Area/Point view** | Switches marker rendering, described above |
 | **"Data stale" chip** (red) | The last fetch failed; the map still shows the previous good data with its timestamp |
@@ -68,10 +75,10 @@ e.g. *"#Πυρκαγιά στο Κορωπί Αττικής"* ("...in Koropi, At
 matches it against a gazetteer of Greek settlements and regional units. This is automatic and
 occasionally coarse, by design it never fabricates a precise point it isn't sure of:
 
-- **Settlement match found** → pinned at that settlement (small marker).
+- **Settlement match found** → pinned at that settlement, full-opacity pin.
 - **Only the region/regional-unit resolves** (e.g. the place name is too small or oddly spelled
-  to match) → pinned at the region's centroid instead — a deliberately larger, faded marker,
-  meaning "somewhere in this area," not "exactly here."
+  to match) → pinned at the region's centroid instead — a deliberately faded pin, meaning
+  "somewhere in this area," not "exactly here."
 - **Neither resolves** → the report is skipped entirely rather than guessed.
 
 Click a marker for the original Greek text and a link to the source post.
@@ -97,6 +104,9 @@ never saw.
 | Orange → confirmed (or new red marker) | Next polar pass: minutes to a few hours, ~4 passes/day |
 | Unconfirmed with no corroboration | Expires and disappears after **12h** |
 | Anything older than **7 days** | Deleted from the database entirely |
+
+These are ingestion delays (satellite scan → our server). Once the server has it, your browser
+sees it within seconds via the live push, not on the next 5-minute poll.
 
 **An empty map is information too:** no orange markers means the fast satellite currently
 sees nothing burning in Greece — not that the system is down (check the "Last updated" time
