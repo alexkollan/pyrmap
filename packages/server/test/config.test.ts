@@ -16,6 +16,9 @@ describe('loadConfig', () => {
       lsaSafUsername: null,
       lsaSafPassword: null,
       xBearerToken: null,
+      authUsername: null,
+      authPassword: null,
+      sessionSecret: null,
     });
   });
 
@@ -34,6 +37,13 @@ describe('loadConfig', () => {
   it('passes through the X bearer token when set', () => {
     const config = loadConfig({ ...validEnv, X_BEARER_TOKEN: 'tok' });
     expect(config.xBearerToken).toBe('tok');
+  });
+
+  it('passes through auth credentials when all three are set', () => {
+    const config = loadConfig({ ...validEnv, AUTH_USERNAME: 'alex', AUTH_PASSWORD: 'pw', SESSION_SECRET: 'sec' });
+    expect(config.authUsername).toBe('alex');
+    expect(config.authPassword).toBe('pw');
+    expect(config.sessionSecret).toBe('sec');
   });
 
   it('rejects a missing FIRMS_MAP_KEY', () => {

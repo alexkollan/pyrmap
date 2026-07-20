@@ -126,16 +126,31 @@ and the absence of the red "stale" chip to be sure).
   https://api.eumetsat.int/api-key/
 - **X API** (optional — enables the "reported fires" layer): create a project/app at
   https://developer.x.com and generate a Bearer Token. **Unlike the others, this one is not
-  free** — X bills pay-per-use (~$0.005/tweet read); polling one account every 15 minutes costs
-  roughly $15–25/month. Skip it if you don't want that recurring cost.
+  free** — X bills pay-per-use (~$0.005/tweet read). An empty poll (nothing new posted) costs
+  nothing, so the real driver is how often the account actually posts, not the poll cadence
+  itself (every 1 minute by default) — roughly $15–25/month in practice.
+- **Login** (optional, strongly recommended for any public deployment): pick a username and
+  password, and generate a session secret with:
+  `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`
 
 ### 2. Configure
 
 ```bash
 cp .env.example .env
 # edit .env: set FIRMS_MAP_KEY, and optionally LSASAF_USERNAME + LSASAF_PASSWORD, and/or
-# EUMETSAT_CONSUMER_KEY + EUMETSAT_CONSUMER_SECRET, and/or X_BEARER_TOKEN
+# EUMETSAT_CONSUMER_KEY + EUMETSAT_CONSUMER_SECRET, and/or X_BEARER_TOKEN, and/or
+# AUTH_USERNAME + AUTH_PASSWORD + SESSION_SECRET
 ```
+
+### Access control
+
+If `AUTH_USERNAME`, `AUTH_PASSWORD`, and `SESSION_SECRET` are all set, the whole app requires
+login — `/api/fires`, `/api/status`, `/api/events`, everything except the static page shell and
+`/api/health` (which stays open unconditionally so Docker's own healthcheck keeps working). Log
+in once and the session persists for 90 days via a signed, HttpOnly cookie — no separate "remember
+me" step. A **Log out** button appears in the top bar whenever login is active. Leave any of the
+three unset and the site is fully open, no login screen at all — that's the default, meant for
+local development, not for anything reachable from the internet.
 
 ### 3. Run
 

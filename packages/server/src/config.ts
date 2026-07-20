@@ -11,6 +11,11 @@ export interface Config {
   lsaSafPassword: string | null;
   /** Optional X API bearer token; when set, the Fire Service's X posts feed the incident-reports layer. */
   xBearerToken: string | null;
+  /** Optional single-user auth; when all three are set, every route except /api/login, /api/logout,
+   * /api/me, and /api/health requires a signed session cookie. Unset = open access (local dev default). */
+  authUsername: string | null;
+  authPassword: string | null;
+  sessionSecret: string | null;
 }
 
 /** Reads and validates required env vars. Throws with a clear message if invalid. */
@@ -36,5 +41,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     lsaSafUsername: env.LSASAF_USERNAME || null,
     lsaSafPassword: env.LSASAF_PASSWORD || null,
     xBearerToken: env.X_BEARER_TOKEN || null,
+    authUsername: env.AUTH_USERNAME || null,
+    authPassword: env.AUTH_PASSWORD || null,
+    sessionSecret: env.SESSION_SECRET || null,
   };
 }

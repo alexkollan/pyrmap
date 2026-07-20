@@ -15,6 +15,8 @@ export interface StatusBarProps {
   onToggleTheme: () => void;
   viewMode: ViewMode;
   onToggleViewMode: () => void;
+  /** Omitted entirely (no button rendered) when the server has no auth configured. */
+  onLogout?: () => void;
 }
 
 /** Top bar: app name, last-updated time, time-window select, theme/view toggles, auto-refresh indicator, stale-data chip. */
@@ -29,6 +31,7 @@ export function StatusBar({
   onToggleTheme,
   viewMode,
   onToggleViewMode,
+  onLogout,
 }: StatusBarProps): JSX.Element {
   return (
     <div className="status-bar">
@@ -65,6 +68,11 @@ export function StatusBar({
         <span className="stale-chip">
           Data stale{lastSuccessAt ? ` — last update ${formatLocalTime(lastSuccessAt)}` : ''}
         </span>
+      )}
+      {onLogout && (
+        <button type="button" className="logout-button" onClick={onLogout}>
+          Log out
+        </button>
       )}
     </div>
   );

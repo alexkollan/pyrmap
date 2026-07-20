@@ -16,6 +16,7 @@ import type { FireAlertSource } from './ports/FireAlertSource.js';
 import type { FireDataSource } from './ports/FireDataSource.js';
 import type { IncidentReportRepository } from './ports/IncidentReportRepository.js';
 import type { IncidentSource } from './ports/IncidentSource.js';
+import type { AuthConfig } from './routes/auth.js';
 
 async function main(): Promise<void> {
   const config = loadConfig();
@@ -35,8 +36,21 @@ async function main(): Promise<void> {
     };
   }
 
+  // Single-user auth, off by default (local dev). Requires all three so a partially-filled .env
+  // never accidentally leaves the map open when the operator thought it was locked down.
+  const auth: AuthConfig | null =
+    config.authUsername && config.authPassword && config.sessionSecret
+      ? { username: config.authUsername, password: config.authPassword, sessionSecret: config.sessionSecret }
+      : null;
+
   const updateBus = new UpdateBus();
-  const app = await buildApp(config, repository, undefined, undefined, incidentRepository, updateBus);
+  const app = await buildApp(config, repository, undefined, undefined, incidentRepository, updateBus, auth);
+
+  if (auth) {
+    app.log.info('Auth enabled — /api/fires, /api/status, /api/events require login');
+  } else {
+    app.log.warn('AUTH_USERNAME/AUTH_PASSWORD/SESSION_SECRET not fully set — running with open access');
+  }
 
   const dataSource: FireDataSource = process.env.FIRMS_MOCK
     ? new MockFireDataSource()

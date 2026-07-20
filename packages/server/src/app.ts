@@ -10,12 +10,16 @@ import { healthRoutes } from './routes/health.js';
 import { firesRoutes } from './routes/fires.js';
 import { statusRoutes } from './routes/status.js';
 import { eventsRoutes } from './routes/events.js';
+import { authRoutes, requireAuth, type AuthConfig } from './routes/auth.js';
 import { UpdateBus } from './jobs/updateBus.js';
 
 // dist/app.js -> ../public is /app/public in the runtime image (Dockerfile copies web's build there).
 const DEFAULT_PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '../public');
 
-/** Builds a Fastify instance without starting the listener — used by both index.ts and tests. */
+/** Builds a Fastify instance without starting the listener — used by both index.ts and tests.
+ * `auth` is null for open access (local dev default); when set, /api/fires, /api/status, and
+ * /api/events require a valid session cookie. /api/health, /api/login, /api/logout, /api/me, and
+ * the static frontend itself (so the SPA can render a login form) stay reachable either way. */
 export async function buildApp(
   config: Pick<Config, 'logLevel'>,
   repository: FireRepository,
@@ -23,13 +27,23 @@ export async function buildApp(
   publicDir: string = DEFAULT_PUBLIC_DIR,
   incidentRepository?: IncidentReportRepository,
   updateBus: UpdateBus = new UpdateBus(),
+  auth: AuthConfig | null = null,
 ): Promise<FastifyInstance> {
   const app = Fastify({ logger: { level: config.logLevel } });
 
   await app.register(healthRoutes(repository));
-  await app.register(firesRoutes(repository, now, incidentRepository));
-  await app.register(statusRoutes(repository, now));
-  await app.register(eventsRoutes(updateBus));
+  if (auth) {
+    await app.register(authRoutes(auth));
+  }
+
+  await app.register(async (protectedApp) => {
+    if (auth) {
+      protectedApp.addHook('onRequest', requireAuth(auth.sessionSecret));
+    }
+    await protectedApp.register(firesRoutes(repository, now, incidentRepository));
+    await protectedApp.register(statusRoutes(repository, now));
+    await protectedApp.register(eventsRoutes(updateBus));
+  });
 
   // Serves the built frontend, dev-plan §10.1 pt 3. Skipped if the frontend hasn't been built (e.g. server-only dev).
   if (existsSync(publicDir)) {
