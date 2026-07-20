@@ -1,0 +1,22 @@
+name: Deploy
+
+# Triggers Portainer's GitOps webhook on every push to main. Portainer checks whether the
+# repo's latest commit hash actually changed before doing any work — this just tells it
+# "go check now" instead of waiting for its next poll. No build happens here; the build
+# runs on the VPS, inside Portainer's own redeploy.
+on:
+  push:
+    branches: [main]
+
+jobs:
+  trigger-portainer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Portainer redeploy
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${{ secrets.PORTAINER_WEBHOOK_URL }}")
+          echo "Portainer webhook responded: $status"
+          if [ "$status" != "204" ]; then
+            echo "::error::Expected HTTP 204 from Portainer webhook, got $status"
+            exit 1
+          fi

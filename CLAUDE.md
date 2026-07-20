@@ -11,7 +11,8 @@ You are one of possibly several agents working on this codebase over time. These
 
 ## 2. Git discipline (mandatory)
 
-- Local repo only, branch `main`, linear history. No branches, no force-push, no history rewriting.
+- Remote is `origin` on GitHub (**private** repo), branch `main`, linear history. No branches, no force-push, no history rewriting.
+- **Pushing to `main` triggers a real production deployment**: a GitHub Actions workflow (`.github/workflows/deploy.yml`) hits a Portainer webhook, which rebuilds and redeploys the live VPS instance if the commit hash changed. Treat every push to `main` as "this goes live," not as a save point — confirm with the user before pushing unless they've explicitly asked you to push as part of the current task.
 - **Never commit broken code.** Before EVERY commit: `pnpm -r build && pnpm test` must pass. No exceptions, including "WIP" commits — WIP commits are forbidden.
 - One commit = one working unit (a parser + its tests; a route + its tests). Not one commit per milestone, not one commit per file.
 - Conventional Commits: `feat|fix|test|chore|refactor|docs(scope): message`. Scopes: `server`, `web`, `shared`, `repo`.

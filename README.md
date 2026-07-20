@@ -145,18 +145,28 @@ docker compose up -d --build
 
 Live detections for Greece should appear within ~15 minutes.
 
-The compose file publishes no ports — it expects a `cloudflared` container already running
-on the external `web` Docker network, routing a public hostname to `http://pyrmap:8080`
-(tunnel hostname configured by the operator in Cloudflare Zero Trust). For local testing,
-create the network once (`docker network create web`) and add a gitignored
-`docker-compose.override.yml` with a `ports: ["8080:8080"]` mapping.
+The compose file publishes port `48080` on the host, mapped to the container's internal `8080`
+(the app itself is unaffected — it still listens on 8080 inside the container; only the
+host-side port differs). Point a `cloudflared` tunnel's public hostname at `http://localhost:48080`
+on the host running the stack. For local testing on a different machine, add a gitignored
+`docker-compose.override.yml` with a `ports: ["8080:8080"]` mapping if you'd rather use the
+more familiar port locally — both mappings can coexist.
 
 ### 4. Check it's healthy
 
 ```bash
-curl http://localhost:8080/api/health   # {"ok":true}
-curl http://localhost:8080/api/status   # per-source fetch health + counts
+curl http://localhost:48080/api/health   # {"ok":true}
+curl http://localhost:48080/api/status   # per-source fetch health + counts
 ```
+
+### Continuous deployment
+
+Pushing to `main` on the GitHub remote redeploys automatically: `.github/workflows/deploy.yml`
+hits a Portainer webhook, which checks whether the commit hash actually changed and, if so,
+pulls the repo and rebuilds the stack in place — no separate CI build or container registry
+involved, the build runs on the same host that serves the app. Requires a Portainer stack
+configured with GitOps auto-updates (webhook mode) pointed at this repo, and a
+`PORTAINER_WEBHOOK_URL` repository secret in GitHub Actions.
 
 ## Local development
 

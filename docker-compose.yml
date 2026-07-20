@@ -4,10 +4,7 @@ services:
     container_name: pyrmap
     restart: unless-stopped
     env_file: .env
+    ports:
+      - "48080:8080"
     volumes:
       - ./data:/data
-    networks:
-      - web
-networks:
-  web:
-    external: true
