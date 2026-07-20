@@ -43,6 +43,13 @@ describe('extractLocationPhrase', () => {
     expect(extractLocationPhrase(text)).toEqual({ settlement: 'Ωραιοκάστρου', regionGenitive: 'Θεσσαλονίκης' });
   });
 
+  it('ignores a "του δήμου X" clause in a LATER sentence — that names which municipality sent backup resources, not the fire location', () => {
+    // Real post, 2026-07-20: fire is in Paleochori (first sentence); Lamia's water tankers helped (second sentence).
+    const text =
+      '#Πυρκαγιά σε χαμηλή βλάστηση στην περιοχή Παλαιοχώρι Φθιώτιδας. Κινητοποιήθηκαν 30 #πυροσβέστες με 1 ομάδα πεζοπόρου της 4ης ΕΜΟΔΕ, 8 οχήματα, 5 Α/Φ και 1 Ε/Π. Συνδρομή από υδροφόρες του δήμου Λαμιεών.';
+    expect(extractLocationPhrase(text)).toEqual({ settlement: 'Παλαιοχώρι', regionGenitive: 'Φθιώτιδας' });
+  });
+
   it('strips the leading "νήσος" qualifier so an island name resolves as a single settlement token', () => {
     expect(extractLocationPhrase('Κατεσβέσθη #πυρκαγιά σε ΕΙΧ όχημα, στη νήσος Ρόδος.')).toEqual({
       settlement: 'Ρόδος',

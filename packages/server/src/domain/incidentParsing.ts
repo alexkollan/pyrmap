@@ -39,9 +39,19 @@ const QUALIFIER_RE = /^(?:νήσος|νησί|νησιού)\s+/u;
  * it is the settlement/municipality name. A single-word capture (e.g. an island name with no
  * region) is returned as the settlement alone. Returns null when no such clause is found —
  * the caller's signal to skip the post (see isFireIncidentPost's doc comment).
+ *
+ * Search is scoped to the FIRST sentence only. The fire's actual location is always there; a
+ * "του δήμου X" appearing in a later sentence is often just which municipality sent backup water
+ * tankers, not where the fire is (real example, 2026-07-20 — see docs/DECISIONS.md: "...στην
+ * περιοχή Παλαιοχώρι Φθιώτιδας. ... Συνδρομή από υδροφόρες του δήμου Λαμιεών." — Λαμιεών/Lamia
+ * sent help; the fire was in Paleochori). A period inside an abbreviation before the real
+ * sentence end (rare, not seen in practice) would defeat this — accepted tradeoff.
  */
 export function extractLocationPhrase(text: string): ExtractedLocation | null {
-  const match = DISTRICT_RE.exec(text) ?? GENERIC_RE.exec(text);
+  const firstPeriod = text.indexOf('.');
+  const firstSentence = firstPeriod === -1 ? text : text.slice(0, firstPeriod + 1);
+
+  const match = DISTRICT_RE.exec(firstSentence) ?? GENERIC_RE.exec(firstSentence);
   if (!match) return null;
 
   const phrase = match[1]!.trim().replace(QUALIFIER_RE, '');
