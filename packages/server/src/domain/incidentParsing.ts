@@ -30,11 +30,17 @@ const GREEK_WORD = 'Α-Ωα-ωΆΈΉΊΌΎΏΪΫάέήίόύώϊϋΐΰ';
 const ABBR_PREFIX = '(?:[Α-Ω]{1,3}\\.\\s*)*';
 const PHRASE = `${ABBR_PREFIX}[${GREEK_WORD}][${GREEK_WORD}\\s]*?`;
 
-// "του δήμου X Y" is the most specific/authoritative phrasing when present — tried first, but
-// only when it's not itself preceded by an "assistance from" framing (see below).
-const DISTRICT_RE = new RegExp(`του\\s+δήμου\\s+(${PHRASE})\\s*[.,]`, 'gu');
+// The phrase ends at a period/comma, OR at the end of the post — some posts (especially short
+// ones) have no trailing punctuation at all (real post, 2026-07-20: "...η #πυρκαγιά στο δήμο
+// Κιλελέρ Λάρισας" with nothing after "Λάρισας", not even a full stop).
+const PHRASE_END = '\\s*(?:[.,]|$)';
+
+// "του δήμου X Y" (genitive, "of the municipality") or "στο/στον δήμο X Y" (accusative, "in the
+// municipality") — the most specific/authoritative phrasing when present, tried first, but only
+// when it's not itself preceded by an "assistance from" framing (see below).
+const DISTRICT_RE = new RegExp(`(?:του\\s+δήμου|στ(?:ο|ον)\\s+δήμο)\\s+(${PHRASE})${PHRASE_END}`, 'gu');
 // Generic "στο/στη/στην/στον [(την) περιοχή] X Y" fallback.
-const GENERIC_RE = new RegExp(`στ(?:ο|η|ην|ον)(?:\\s+(?:την\\s+)?περιοχή)?\\s+(${PHRASE})\\s*[.,]`, 'u');
+const GENERIC_RE = new RegExp(`στ(?:ο|η|ην|ον)(?:\\s+(?:την\\s+)?περιοχή)?\\s+(${PHRASE})${PHRASE_END}`, 'u');
 
 // Leading generic-noun qualifiers ("island X") that aren't part of the place name itself.
 const QUALIFIER_RE = /^(?:νήσος|νησί|νησιού)\s+/u;

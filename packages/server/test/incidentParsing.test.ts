@@ -59,6 +59,13 @@ describe('extractLocationPhrase', () => {
     expect(extractLocationPhrase(text)).toEqual({ settlement: 'Ν. Σμύρνης', regionGenitive: 'Αττικής' });
   });
 
+  it('matches "στο δήμο X Y" (accusative), not just "του δήμου X Y" (genitive), with no trailing punctuation at all', () => {
+    // Real post, 2026-07-20 — short post, no period at the end, and uses "στο δήμο" (accusative,
+    // "in the municipality") rather than the genitive form the other tests cover.
+    const text = 'Υπό μερικό έλεγχο τέθηκε η #πυρκαγιά στο δήμο Κιλελέρ Λάρισας';
+    expect(extractLocationPhrase(text)).toEqual({ settlement: 'Κιλελέρ', regionGenitive: 'Λάρισας' });
+  });
+
   it('strips the leading "νήσος" qualifier so an island name resolves as a single settlement token', () => {
     expect(extractLocationPhrase('Κατεσβέσθη #πυρκαγιά σε ΕΙΧ όχημα, στη νήσος Ρόδος.')).toEqual({
       settlement: 'Ρόδος',
