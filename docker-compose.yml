@@ -20,4 +20,9 @@ services:
     ports:
       - "48080:8080"
     volumes:
-      - ./data:/data
+      # Absolute path via HOST_DATA_DIR for Portainer GitOps deploys — a relative "./data" would
+      # resolve inside Portainer's own ephemeral git-clone working directory (verified live,
+      # 2026-07-20: that whole directory gets removed on stack deletion, taking the database with
+      # it). Defaults to the old relative behavior for plain local `docker compose up`, where the
+      # working directory is a path you control directly and this risk doesn't apply.
+      - ${HOST_DATA_DIR:-./data}:/data
