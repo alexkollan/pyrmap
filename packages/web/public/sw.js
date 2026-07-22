@@ -28,8 +28,7 @@ self.addEventListener('notificationclick', (event) => {
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsList) => {
       for (const client of clientsList) {
         if ('focus' in client && 'navigate' in client) {
-          client.navigate(targetUrl);
-          return client.focus();
+          return client.navigate(targetUrl).then(() => client.focus());
         }
       }
       return self.clients.openWindow(targetUrl);
