@@ -64,3 +64,12 @@ export interface StatusResponse {
 export interface HealthResponse {
   ok: boolean;
 }
+
+/** The browser's native PushSubscription JSON shape, sent to POST /api/push/subscribe. */
+export interface PushSubscriptionPayload {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+}
