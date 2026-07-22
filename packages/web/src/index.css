@@ -322,6 +322,47 @@ body,
   .legend.legend-collapsed {
     display: none;
   }
+
+  .status-bar {
+    gap: 0.4rem;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .app-name {
+    flex: 1 1 100%;
+  }
+
+  .last-updated {
+    flex: 1 1 100%;
+    font-size: 0.8rem;
+  }
+
+  .hours-select,
+  .rescan-select,
+  .status-bar button {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.8rem;
+    padding: 0.3rem 0.4rem;
+  }
+
+  .layers-panel-container {
+    top: auto;
+    bottom: 1rem;
+    right: 0.5rem;
+  }
+
+  .layers-panel {
+    min-width: 0;
+    max-width: calc(100vw - 1rem);
+  }
+
+  .legend-container {
+    left: 0.5rem;
+    right: 0.5rem;
+    max-width: calc(100vw - 1rem);
+  }
 }
 
 .auth-loading {
