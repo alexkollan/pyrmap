@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { LayerPrefs } from '../lib/layerPrefs.js';
 import type { ViewMode } from '../lib/viewMode.js';
+import { loadStoredPanelCollapsed, storePanelCollapsed } from '../lib/uiPrefs.js';
 
 /** Human-readable labels for the FIRMS source ids we poll. */
 const SOURCE_LABELS: Record<string, string> = {
@@ -23,7 +24,7 @@ export interface LayersPanelProps {
 
 /** Top-right panel: per-source visibility, external overlays (EFFIS, wind), and the cluster-distance slider. */
 export function LayersPanel({ activeSources, prefs, onChange, viewMode }: LayersPanelProps): JSX.Element {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => loadStoredPanelCollapsed('layers'));
 
   function toggleSource(sourceId: string): void {
     const hidden = prefs.hiddenSources.includes(sourceId)
@@ -34,7 +35,17 @@ export function LayersPanel({ activeSources, prefs, onChange, viewMode }: Layers
 
   return (
     <div className="layers-panel-container">
-      <button type="button" className="layers-toggle" onClick={() => setCollapsed((c) => !c)}>
+      <button
+        type="button"
+        className="layers-toggle"
+        onClick={() => {
+          setCollapsed((c) => {
+            const next = !c;
+            storePanelCollapsed('layers', next);
+            return next;
+          });
+        }}
+      >
         {collapsed ? 'Layers' : 'Hide layers'}
       </button>
       {!collapsed && (

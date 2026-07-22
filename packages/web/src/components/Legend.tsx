@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { loadStoredPanelCollapsed, storePanelCollapsed } from '../lib/uiPrefs.js';
 
 /**
  * Bottom-left legend. Collapsible via a toggle button that only appears below 640px (dev-plan
@@ -6,11 +7,21 @@ import { useState } from 'react';
  * shape/border encodes trust — see docs/DECISIONS.md 2026-07-20.
  */
 export function Legend(): JSX.Element {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => loadStoredPanelCollapsed('legend'));
 
   return (
     <div className="legend-container">
-      <button type="button" className="legend-toggle" onClick={() => setCollapsed((c) => !c)}>
+      <button
+        type="button"
+        className="legend-toggle"
+        onClick={() => {
+          setCollapsed((c) => {
+            const next = !c;
+            storePanelCollapsed('legend', next);
+            return next;
+          });
+        }}
+      >
         {collapsed ? 'Show legend' : 'Hide legend'}
       </button>
       <div className={collapsed ? 'legend legend-collapsed' : 'legend'}>

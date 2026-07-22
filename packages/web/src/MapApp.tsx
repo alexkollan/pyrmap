@@ -16,8 +16,7 @@ import {
 } from './lib/pushNotifications.js';
 import { triggerRescan } from './api/client.js';
 import { RESCAN_COOLDOWN_MS, loadRescanCooldownUntil, storeRescanCooldownUntil } from './lib/rescan.js';
-
-const DEFAULT_HOURS = 24;
+import { loadStoredHours, storeHours } from './lib/uiPrefs.js';
 
 export interface MapAppProps {
   /** Only shown when the server actually has auth enabled — hidden entirely in open-access (local dev) mode. */
@@ -25,7 +24,7 @@ export interface MapAppProps {
 }
 
 export function MapApp({ onLogout }: MapAppProps): JSX.Element {
-  const [hours, setHours] = useState<number>(DEFAULT_HOURS);
+  const [hours, setHours] = useState<number>(loadStoredHours);
   const [theme, setTheme] = useState<Theme>(loadStoredTheme);
   const [viewMode, setViewMode] = useState<ViewMode>(loadStoredViewMode);
   const [layerPrefs, setLayerPrefs] = useState<LayerPrefs>(loadStoredLayerPrefs);
@@ -102,7 +101,10 @@ export function MapApp({ onLogout }: MapAppProps): JSX.Element {
     <div className="app" data-theme={theme}>
       <StatusBar
         hours={hours}
-        onHoursChange={setHours}
+        onHoursChange={(next) => {
+          setHours(next);
+          storeHours(next);
+        }}
         lastSuccessAt={lastSuccessAt}
         loading={loading}
         error={error}
