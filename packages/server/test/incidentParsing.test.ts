@@ -73,6 +73,33 @@ describe('extractLocationPhrase', () => {
     });
   });
 
+  it('skips an assistance-framed "του δήμου X" clause that comes BEFORE the real fire location, not just after', () => {
+    // The existing assistance-exclusion test only covers the framing appearing in a later
+    // sentence; the exclusion check itself is purely local (looks at the ~60 chars before the
+    // match), so it should work regardless of which sentence comes first. Confirms that directly.
+    const text =
+      'Συνδρομή από υδροφόρες του δήμου Λαμιεών. Η πυρκαγιά εντοπίστηκε στην περιοχή του δήμου Παλαιοχωρίου Φθιώτιδας.';
+    expect(extractLocationPhrase(text)).toEqual({ settlement: 'Παλαιοχωρίου', regionGenitive: 'Φθιώτιδας' });
+  });
+
+  it('matches an all-caps fire stem, not just the usual mixed-case hashtag styling', () => {
+    expect(isFireIncidentPost('ΠΥΡΚΑΓΙΑ σε δασική έκταση στο δήμο Κορωπίου.')).toBe(true);
+    expect(extractLocationPhrase('ΠΥΡΚΑΓΙΑ σε δασική έκταση στο δήμο Κορωπίου.')).toEqual({
+      settlement: 'Κορωπίου',
+      regionGenitive: null,
+    });
+  });
+
+  it('only ever extracts ONE location from a post naming two separate, unrelated fires', () => {
+    // Known limitation, not a bug fix in this commit: extractLocationPhrase returns a single
+    // location, so if the account ever bundles multiple distinct incidents into one post, only
+    // the first is kept and the second is silently dropped. No live example has confirmed this
+    // actually happens yet — flagged here so a future miss is recognized immediately as "the
+    // known limitation", not re-investigated as a new mystery. See docs/DECISIONS.md 2026-07-22.
+    const text = 'Κατεσβέσθη #πυρκαγιά στο δήμο Νάουσας. #Πυρκαγιά σε εξέλιξη στο δήμο Αχαρνών.';
+    expect(extractLocationPhrase(text)).toEqual({ settlement: 'Νάουσας', regionGenitive: null });
+  });
+
   it('returns null for an aggregate-statistics post with no "in [place]" clause', () => {
     expect(extractLocationPhrase('🔥 37 αγροτοδασικές #πυρκαγιές εκδηλώθηκαν το τελευταίο 24ωρο.')).toBeNull();
   });

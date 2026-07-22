@@ -65,28 +65,53 @@ function distanceKm(a: { lat: number; lon: number }, b: { lat: number; lon: numb
 // add more here only once observed for real, not speculatively.
 const ABBREVIATION_RE = /^Ν\.\s+/u;
 
-/** The gazetteer (GeoNames GR dump, see docs/DECISIONS.md 2026-07-20) stores names in nominative
- * case, undeclined; posts write them in whatever case the sentence needs. Tries, in order: as
- * written; with the common "Ν." -> "Νέα" abbreviation expanded; "+ς" for the masculine -ος
- * accusative pattern ("Ωρωπό" -> "Ωρωπός"); "-ς" stripped for the feminine/consonant-stem
+/**
+ * Case-declension variants of a single word, in priority order (as-written first): "+ς" for the
+ * masculine -ος accusative pattern ("Ωρωπό" -> "Ωρωπός"); "-ς" stripped for the feminine
  * genitive pattern ("Σμύρνης" -> "Σμύρνη"); "-ών" -> "-ές" for the plural-toponym genitive
- * pattern used by "δήμος X-ών" names ("Αχαρνών" -> "Αχαρνές") — each tried against both the
- * as-written and the abbreviation-expanded form. Genuinely irregular declensions (rare) simply
- * won't match and the post is skipped rather than mismapped. */
+ * pattern ("Αχαρνών" -> "Αχαρνές"); "-ου" -> "-ος" for the masculine genitive pattern ("Ωρωπού" ->
+ * "Ωρωπός"); "-ου" stripped to "-ο" for the neuter genitive pattern ("Λαυρίου" -> "Λαύριο"); "-ίου"
+ * stripped to "-ι" for the extremely common "-ι"-stem neuter genitive pattern ("Κορωπίου" ->
+ * "Κορωπί", also Περιστέρι/Χαϊδάρι/Μαρούσι-style names).
+ */
+function wordVariants(word: string): string[] {
+  const variants = new Set<string>([word, `${word}ς`]);
+  if (word.endsWith('ς')) variants.add(word.slice(0, -1));
+  if (word.endsWith('ων')) variants.add(`${word.slice(0, -2)}ες`);
+  if (word.endsWith('ιου')) variants.add(word.slice(0, -2));
+  if (word.endsWith('ου')) {
+    variants.add(`${word.slice(0, -2)}ος`);
+    variants.add(word.slice(0, -1));
+  }
+  return [...variants];
+}
+
+function* cartesian(options: string[][]): Generator<string[]> {
+  if (options.length === 0) {
+    yield [];
+    return;
+  }
+  const [first, ...rest] = options;
+  for (const item of first!) {
+    for (const tail of cartesian(rest)) yield [item, ...tail];
+  }
+}
+
+/** The gazetteer (GeoNames GR dump, see docs/DECISIONS.md 2026-07-20) stores names in nominative
+ * case, undeclined; posts write them in whatever case the sentence needs, and multi-word names
+ * ("Άγιος Δημήτριος") decline every word, not just the last one. Declines each space-separated
+ * word of `name` independently (see wordVariants) and tries every combination, against both the
+ * as-written name and the common "Ν." -> "Νέα" abbreviation expansion. Genuinely irregular
+ * declensions (rare) simply won't match and the post is skipped rather than mismapped. */
 function settlementCandidates(name: string): Settlement[] {
   const expanded = ABBREVIATION_RE.test(name) ? name.replace(ABBREVIATION_RE, 'Νέα ') : null;
 
   for (const base of expanded ? [name, expanded] : [name]) {
-    const folded = foldAccents(base);
-    const variants = [
-      folded,
-      `${folded}ς`,
-      folded.endsWith('ς') ? folded.slice(0, -1) : null,
-      folded.endsWith('ων') ? `${folded.slice(0, -2)}ες` : null,
-    ];
-    for (const variant of variants) {
-      if (!variant) continue;
-      const match = settlementsByName.get(variant);
+    const wordOptions = foldAccents(base)
+      .split(/\s+/)
+      .map((word) => wordVariants(word));
+    for (const combo of cartesian(wordOptions)) {
+      const match = settlementsByName.get(combo.join(' '));
       if (match) return match;
     }
   }
@@ -140,6 +165,21 @@ function pickIfDominant(candidates: Settlement[]): Settlement | null {
  */
 export function geocodeGreekLocation(settlement: string, regionGenitive: string | null): GeocodedLocation | null {
   const region = regionGenitive ? (regionByName.get(foldAccents(regionGenitive)) ?? null) : null;
+
+  if (regionGenitive && !region) {
+    // The "last word = region" split (see extractLocationPhrase) doesn't resolve to a real
+    // region — likely because the settlement name is itself multi-word with nothing following it
+    // ("Νέα Μάκρη", "Αγίου Δημητρίου" genitive). Try the whole phrase as one settlement name; if
+    // that doesn't resolve either, stop here rather than falling back to the bare first word
+    // alone, which risks a real-but-wrong match (e.g. "Άγιος" is itself a tiny real place,
+    // pop. 801, unrelated to whatever "Άγιος X" was actually meant).
+    const rejoined = settlementCandidates(`${settlement} ${regionGenitive}`);
+    if (rejoined.length > 0) {
+      const best = pickIfDominant(rejoined);
+      if (best) return { latitude: best.lat, longitude: best.lon, precision: 'settlement' };
+    }
+    return null;
+  }
 
   const candidates = settlementCandidates(settlement);
   if (candidates.length > 0) {

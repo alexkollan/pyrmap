@@ -75,4 +75,55 @@ describe('geocodeGreekLocation', () => {
     const result = geocodeGreekLocation('Αχαρνών', null);
     expect(result).toEqual({ latitude: 38.0833, longitude: 23.7333, precision: 'settlement' });
   });
+
+  it('resolves a masculine genitive "-ου" ending via the "-ος" nominative pattern ("Ωρωπού" -> Ωρωπός)', () => {
+    // "του δήμου Ωρωπού" (genitive of a masc. -ος place, Oropos) matched no existing transform:
+    // it doesn't end in -ς or -ων, so it fell straight to zero candidates.
+    const result = geocodeGreekLocation('Ωρωπού', 'Αττικής');
+    expect(result).toEqual({ latitude: 38.3033, longitude: 23.7555, precision: 'settlement' });
+  });
+
+  it('resolves a neuter genitive "-ου" ending by stripping to the "-ο" nominative ("Λαυρίου" -> Λαύριο)', () => {
+    // "του δήμου Λαυρίου" (genitive of a neuter -ο place, Lavrio) — same missing-transform gap as
+    // above, but the correct nominative is reached by dropping the trailing "υ", not by "+ος".
+    const result = geocodeGreekLocation('Λαυρίου', 'Αττικής');
+    expect(result).toEqual({ latitude: 37.7144, longitude: 24.0565, precision: 'settlement' });
+  });
+
+  it('rejoins a split two-word settlement name when the "region" half is not a real region ("Νέα Μάκρη")', () => {
+    // extractLocationPhrase splits any multi-word capture on its last word, assuming "settlement
+    // region"; when the settlement name is itself two words with nothing following it (e.g. "στη
+    // Νέα Μάκρη." with no region), that produces settlement="Νέα", regionGenitive="Μάκρη" — and
+    // "Μάκρη" isn't a real region. The whole phrase should be retried as one settlement name.
+    const result = geocodeGreekLocation('Νέα', 'Μάκρη');
+    expect(result).toEqual({ latitude: 38.0873, longitude: 23.9764, precision: 'settlement' });
+  });
+
+  it('rejoins AND declines each word of a genitive compound municipality name ("Αγίου Δημητρίου" -> Άγιος Δημήτριος)', () => {
+    // "στο δήμο Αγίου Δημητρίου." (genitive of the compound "Άγιος Δημήτριος") splits to
+    // settlement="Αγίου", regionGenitive="Δημητρίου" — neither word is in its nominative form, so
+    // the rejoin must decline BOTH words (Αγίου->Άγιος, Δημητρίου->Δημήτριος), not just the
+    // phrase's tail, to find the dominant "Άγιος Δημήτριος" (Athens suburb, pop. 71294) among 36
+    // national namesakes.
+    const result = geocodeGreekLocation('Αγίου', 'Δημητρίου');
+    expect(result).toEqual({ latitude: 37.9333, longitude: 23.7333, precision: 'settlement' });
+  });
+
+  it('resolves an "-ι" stem genitive ending in "-ίου" by stripping the "-ου" suffix ("Κορωπίου" -> Κορωπί)', () => {
+    // "-ι"-ending Greek place names (Κορωπί, Περιστέρι, Χαϊδάρι, Μαρούσι, ...) are an extremely
+    // common toponym class, and "του δήμου Κορωπίου" is exactly how the account phrases a
+    // municipality reference. Neither the "-ος" nor the plain "-ο" genitive transform recovers
+    // "Κορωπί" (they'd try "Κορωπιος"/"Κορωπιο"), so this was falling through to, at best, the
+    // coarse regional_unit tier — verified live: previously returned null with no region at all.
+    const result = geocodeGreekLocation('Κορωπίου', null);
+    expect(result).toEqual({ latitude: 37.8989, longitude: 23.8718, precision: 'settlement' });
+  });
+
+  it('does not fall back to a spurious bare-first-word match when a split compound name is genuinely ambiguous', () => {
+    // "Άγιος" alone IS a real, unrelated gazetteer entry (pop. 801) — a trap if the code ever
+    // fell back to the bare first word after the rejoined phrase fails to resolve. "Άγιος
+    // Ιωάννης" (37 namesakes, no dominant one, same shape as "Άγιος Γεώργιος" above) must return
+    // null, not the wrong pop.-801 "Άγιος".
+    expect(geocodeGreekLocation('Άγιο', 'Ιωάννη')).toBeNull();
+  });
 });
