@@ -2,7 +2,7 @@ import { GREECE_BBOX } from '@pyrmap/shared';
 import { computeDedupKey } from '../domain/dedup.js';
 import { persistNewDetections } from './ingestService.js';
 import type { FireAlertSource } from '../ports/FireAlertSource.js';
-import type { FireRepository, NewDetectionRow } from '../ports/FireRepository.js';
+import type { FireRepository, InsertedDetection, NewDetectionRow } from '../ports/FireRepository.js';
 
 /** Latest N bulletins/slots per poll; dedup makes overlap across polls free. */
 const ALERTS_PER_POLL = 3;
@@ -32,6 +32,7 @@ export async function ingestFireAlerts(
   repository: FireRepository,
   now: () => Date,
   onLog?: (message: string) => void,
+  onInserted?: (rows: InsertedDetection[]) => void,
 ): Promise<AlertIngestResult> {
   const fetchedAt = now().toISOString();
 
@@ -85,7 +86,7 @@ export async function ingestFireAlerts(
     }
   }
 
-  const inserted = persistNewDetections(repository, 'geo', rows, now);
+  const inserted = persistNewDetections(repository, 'geo', rows, now, onInserted);
   onLog?.(`source=${sourceConfig.sourceId} alerts=${alerts.length} inGreece=${rows.length} inserted=${inserted}`);
 
   repository.recordFetchLog({

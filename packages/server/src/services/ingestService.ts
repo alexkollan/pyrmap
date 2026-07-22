@@ -2,7 +2,7 @@ import type { Tier } from '@pyrmap/shared';
 import { parseFirmsCsv } from '../adapters/firms/csvParser.js';
 import { computeDedupKey } from '../domain/dedup.js';
 import type { FireDataSource } from '../ports/FireDataSource.js';
-import type { FireRepository, NewDetectionRow } from '../ports/FireRepository.js';
+import type { FireRepository, InsertedDetection, NewDetectionRow } from '../ports/FireRepository.js';
 
 export interface IngestParams {
   dataSource: FireDataSource;
@@ -13,6 +13,7 @@ export interface IngestParams {
   dayRange: number;
   now: () => Date;
   onLog?: (message: string) => void;
+  onInserted?: (rows: InsertedDetection[]) => void;
 }
 
 export interface IngestResult {
@@ -25,7 +26,7 @@ export interface IngestResult {
 
 /** Fetches one FIRMS source, parses, dedups, and persists. Never throws — failures are recorded in fetch_log. Dev-plan §5. */
 export async function ingestSource(params: IngestParams): Promise<IngestResult> {
-  const { dataSource, repository, sourceId, tier, bboxString, dayRange, now, onLog } = params;
+  const { dataSource, repository, sourceId, tier, bboxString, dayRange, now, onLog, onInserted } = params;
   const fetchedAt = now().toISOString();
 
   let fetchResult;
@@ -68,7 +69,7 @@ export async function ingestSource(params: IngestParams): Promise<IngestResult> 
     trackKm: parsedRow.trackKm,
   }));
 
-  const inserted = persistNewDetections(repository, tier, newRows, now);
+  const inserted = persistNewDetections(repository, tier, newRows, now, onInserted);
 
   repository.recordFetchLog({
     source: sourceId,
@@ -88,6 +89,7 @@ export function persistNewDetections(
   tier: Tier,
   rows: NewDetectionRow[],
   now: () => Date,
+  onInserted?: (rows: InsertedDetection[]) => void,
 ): number {
   const inserted = repository.insertDetections(rows);
   if (tier === 'geo' && inserted.length > 0) {
@@ -96,5 +98,6 @@ export function persistNewDetections(
       now().toISOString(),
     );
   }
+  if (inserted.length > 0) onInserted?.(inserted);
   return inserted.length;
 }

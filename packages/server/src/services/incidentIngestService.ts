@@ -30,6 +30,7 @@ export async function ingestIncidentReports(
   sourceId: string,
   now: () => Date,
   onLog?: (message: string) => void,
+  onInserted?: (rows: NewIncidentReportRow[]) => void,
 ): Promise<IncidentIngestResult> {
   const fetchedAt = now().toISOString();
   const sinceId = repository.findLatestExternalId(sourceId);
@@ -86,17 +87,18 @@ export async function ingestIncidentReports(
     });
   }
 
-  const inserted = repository.insertIncidentReports(rows);
-  onLog?.(`source=${sourceId} posts=${posts.length} geocoded=${rows.length} skipped=${skipped} inserted=${inserted}`);
+  const insertedRows = repository.insertIncidentReports(rows);
+  onLog?.(`source=${sourceId} posts=${posts.length} geocoded=${rows.length} skipped=${skipped} inserted=${insertedRows.length}`);
+  if (insertedRows.length > 0) onInserted?.(insertedRows);
 
   repository.recordFetchLog({
     source: sourceId,
     fetchedAt,
     httpStatus: 200,
     rowsParsed: rows.length,
-    rowsInserted: inserted,
+    rowsInserted: insertedRows.length,
     error: null,
   });
 
-  return { postsFetched: posts.length, rowsInserted: inserted, error: null };
+  return { postsFetched: posts.length, rowsInserted: insertedRows.length, error: null };
 }

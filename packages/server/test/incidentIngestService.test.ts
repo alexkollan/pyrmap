@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SqliteIncidentReportRepository } from '../src/adapters/sqlite/SqliteIncidentReportRepository.js';
 import { ingestIncidentReports } from '../src/services/incidentIngestService.js';
 import type { IncidentSource, RawPost } from '../src/ports/IncidentSource.js';
@@ -84,6 +84,20 @@ describe('ingestIncidentReports', () => {
     await ingestIncidentReports(new FakeIncidentSource(POSTS), repo, SOURCE_ID, NOW);
     const second = await ingestIncidentReports(new FakeIncidentSource(POSTS), repo, SOURCE_ID, NOW);
     expect(second.rowsInserted).toBe(0);
+  });
+
+  it('calls onInserted with the newly inserted rows, and does not call it when nothing new was inserted', async () => {
+    const onInserted = vi.fn();
+    await ingestIncidentReports(new FakeIncidentSource(POSTS), repo, SOURCE_ID, NOW, undefined, onInserted);
+
+    expect(onInserted).toHaveBeenCalledTimes(1);
+    const [rows] = onInserted.mock.calls[0]!;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ text: 'Υπό μερικό έλεγχο τέθηκε η #πυρκαγιά στο Κορωπί Αττικής.' });
+
+    onInserted.mockClear();
+    await ingestIncidentReports(new FakeIncidentSource(POSTS), repo, SOURCE_ID, NOW, undefined, onInserted);
+    expect(onInserted).not.toHaveBeenCalled();
   });
 
   it('records a fetch_log error and does not throw when the source fails', async () => {

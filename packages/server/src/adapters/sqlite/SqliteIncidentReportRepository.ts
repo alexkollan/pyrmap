@@ -43,22 +43,22 @@ export class SqliteIncidentReportRepository implements IncidentReportRepository 
     runMigrations(this.db);
   }
 
-  insertIncidentReports(rows: NewIncidentReportRow[]): number {
+  insertIncidentReports(rows: NewIncidentReportRow[]): NewIncidentReportRow[] {
     const insert = this.db.prepare(`
       INSERT OR IGNORE INTO incident_reports
         (external_id, source, text, url, published_at, latitude, longitude, precision)
       VALUES (@externalId, @source, @text, @url, @publishedAt, @latitude, @longitude, @precision)
     `);
 
-    let inserted = 0;
+    const insertedRows: NewIncidentReportRow[] = [];
     const runAll = this.db.transaction((batch: NewIncidentReportRow[]) => {
       for (const row of batch) {
-        if (insert.run(row).changes === 1) inserted++;
+        if (insert.run(row).changes === 1) insertedRows.push(row);
       }
     });
     runAll(rows);
 
-    return inserted;
+    return insertedRows;
   }
 
   findLatestExternalId(source: string): string | null {

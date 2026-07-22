@@ -22,8 +22,8 @@ export interface IncidentFetchLogEntry {
 
 /** Persists geocoded incident reports and fetch history. SQL lives only in the sqlite adapter implementing this port. */
 export interface IncidentReportRepository {
-  /** INSERT OR IGNORE on external_id; returns how many rows were newly inserted. */
-  insertIncidentReports(rows: NewIncidentReportRow[]): number;
+  /** INSERT OR IGNORE on external_id; returns only the rows that were newly inserted. */
+  insertIncidentReports(rows: NewIncidentReportRow[]): NewIncidentReportRow[];
   /** The largest external_id already stored for a source, for since_id-style incremental polling. Null if none yet. */
   findLatestExternalId(source: string): string | null;
   /** Incident reports with published_at >= sinceIso, newest first. */
