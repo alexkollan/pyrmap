@@ -163,7 +163,7 @@ describe('startScheduler', () => {
     const result = await scheduler.rescan(6);
     incidentRepo.close();
 
-    expect(result.satellite.rowsInserted).toBeGreaterThanOrEqual(0); // dedup may make this 0 on a re-poll of the same fixture
+    expect(result.satellite.sourcesChanged).toBeGreaterThanOrEqual(0); // dedup may make this 0 on a re-poll of the same fixture
     expect(result.incidents).toEqual({
       postsChecked: 1,
       rowsInserted: 1,

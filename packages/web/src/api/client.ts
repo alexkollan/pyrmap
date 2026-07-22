@@ -41,7 +41,7 @@ export async function logout(): Promise<void> {
 }
 
 export interface RescanResponse {
-  satellite: { rowsInserted: number };
+  satellite: { sourcesChanged: number };
   incidents: {
     postsChecked: number;
     rowsInserted: number;

@@ -48,7 +48,7 @@ export interface Scheduler {
   pollIncidents: () => Promise<void>;
   decay: () => void;
   retention: () => void;
-  rescan: (hours: 6 | 12 | 24) => Promise<{ satellite: { rowsInserted: number }; incidents: RescanResult | null }>;
+  rescan: (hours: 6 | 12 | 24) => Promise<{ satellite: { sourcesChanged: number }; incidents: RescanResult | null }>;
 }
 
 /**
@@ -110,17 +110,17 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
     if (result.rowsInserted > 0) deps.onUpdate?.();
   }
 
-  async function rescan(hours: 6 | 12 | 24): Promise<{ satellite: { rowsInserted: number }; incidents: RescanResult | null }> {
-    let satelliteInserted = 0;
+  async function rescan(hours: 6 | 12 | 24): Promise<{ satellite: { sourcesChanged: number }; incidents: RescanResult | null }> {
+    let sourcesChanged = 0;
     for (const sourceId of geoSourceIds) {
-      if (await ingestOne(sourceId, 'geo')) satelliteInserted++;
+      if (await ingestOne(sourceId, 'geo')) sourcesChanged++;
     }
     for (const sourceId of polarSourceIds) {
-      if (await ingestOne(sourceId, 'polar')) satelliteInserted++;
+      if (await ingestOne(sourceId, 'polar')) sourcesChanged++;
     }
     for (const { source, config } of deps.alertSources ?? []) {
       const result = await ingestFireAlerts(source, config, deps.repository, now, deps.onLog, deps.onNewDetections);
-      if (result.rowsInserted > 0) satelliteInserted++;
+      if (result.rowsInserted > 0) sourcesChanged++;
     }
 
     const incidents = deps.incidentIngestion;
@@ -138,7 +138,7 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
       : null;
 
     deps.onUpdate?.();
-    return { satellite: { rowsInserted: satelliteInserted }, incidents: incidentResult };
+    return { satellite: { sourcesChanged }, incidents: incidentResult };
   }
 
   async function pollPolar(): Promise<void> {

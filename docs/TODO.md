@@ -7,7 +7,7 @@ markers, favicon, single-user auth, Portainer/GitHub Actions CI/CD, PWA + push n
 Nominatim live geocoding (offline gazetteer as fallback), a real Greece boundary polygon filtering
 out Turkish hotspots, per-day durable failure logs, a rescan control (6h/12h/24h, all sources
 including X), and fully persisted UI state (6h default window, panel collapsed state).
-`pnpm -r build && pnpm test` green (260 tests), live production verified at pyrmap.alexcoll.in
+`pnpm -r build && pnpm test` green (257 tests), live production verified at pyrmap.alexcoll.in
 (real FIRMS/EUMETSAT/LSASAF/X data flowing, `/api/status` showing real rowsInserted).
 
 - Push notifications are code-complete but NOT yet live: needs a real VAPID keypair
