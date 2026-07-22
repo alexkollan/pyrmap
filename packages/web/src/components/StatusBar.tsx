@@ -11,6 +11,9 @@ export interface StatusBarProps {
   loading: boolean;
   error: boolean;
   onRefresh: () => void;
+  rescanning: boolean;
+  rescanCooldownActive: boolean;
+  onRescan: (hours: 6 | 12 | 24) => void;
   theme: Theme;
   onToggleTheme: () => void;
   viewMode: ViewMode;
@@ -31,6 +34,9 @@ export function StatusBar({
   loading,
   error,
   onRefresh,
+  rescanning,
+  rescanCooldownActive,
+  onRescan,
   theme,
   onToggleTheme,
   viewMode,
@@ -62,6 +68,22 @@ export function StatusBar({
       <button type="button" onClick={onRefresh} disabled={loading}>
         {loading ? 'Refreshing…' : 'Refresh'}
       </button>
+      <select
+        className="rescan-select"
+        aria-label="Re-scan time window"
+        disabled={rescanning || rescanCooldownActive}
+        value=""
+        onChange={(event) => {
+          const hours = Number(event.target.value) as 6 | 12 | 24;
+          if (hours) onRescan(hours);
+          event.target.value = '';
+        }}
+      >
+        <option value="">{rescanning ? 'Re-scanning…' : rescanCooldownActive ? 'Re-scan (cooling down)' : 'Re-scan…'}</option>
+        <option value="6">Last 6h</option>
+        <option value="12">Last 12h</option>
+        <option value="24">Last 24h</option>
+      </select>
       <button type="button" onClick={onToggleTheme} aria-label="Toggle dark/light map">
         {theme === 'dark' ? 'Light mode' : 'Dark mode'}
       </button>

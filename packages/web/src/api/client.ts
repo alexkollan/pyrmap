@@ -39,3 +39,26 @@ export async function login(username: string, password: string): Promise<boolean
 export async function logout(): Promise<void> {
   await fetch('/api/logout', { method: 'POST' });
 }
+
+export interface RescanResponse {
+  satellite: { rowsInserted: number };
+  incidents: {
+    postsChecked: number;
+    rowsInserted: number;
+    postsSkippedAlreadyResolved: number;
+    postsFailed: number;
+    error: string | null;
+  } | null;
+}
+
+export async function triggerRescan(hours: 6 | 12 | 24): Promise<RescanResponse> {
+  const response = await fetch('/api/rescan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hours }),
+  });
+  if (!response.ok) {
+    throw new Error(`POST /api/rescan failed: HTTP ${response.status}`);
+  }
+  return (await response.json()) as RescanResponse;
+}

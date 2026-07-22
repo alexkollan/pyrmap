@@ -14,6 +14,8 @@ import {
   enablePushNotifications,
   isPushEnabled,
 } from './lib/pushNotifications.js';
+import { triggerRescan } from './api/client.js';
+import { RESCAN_COOLDOWN_MS, loadRescanCooldownUntil, storeRescanCooldownUntil } from './lib/rescan.js';
 
 const DEFAULT_HOURS = 24;
 
@@ -31,10 +33,27 @@ export function MapApp({ onLogout }: MapAppProps): JSX.Element {
   const [focusTarget] = useState(() => parseFocusTarget(window.location.search));
   const [pushSupport] = useState(checkPushSupport);
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [rescanning, setRescanning] = useState(false);
+  const [cooldownUntil, setCooldownUntil] = useState(loadRescanCooldownUntil);
 
   useEffect(() => {
     isPushEnabled().then(setPushEnabled);
   }, []);
+
+  async function handleRescan(hours: 6 | 12 | 24): Promise<void> {
+    setRescanning(true);
+    try {
+      await triggerRescan(hours);
+      const until = Date.now() + RESCAN_COOLDOWN_MS;
+      storeRescanCooldownUntil(until);
+      setCooldownUntil(until);
+      refresh();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setRescanning(false);
+    }
+  }
 
   async function togglePush(): Promise<void> {
     if (pushEnabled) {
@@ -88,6 +107,9 @@ export function MapApp({ onLogout }: MapAppProps): JSX.Element {
         loading={loading}
         error={error}
         onRefresh={refresh}
+        rescanning={rescanning}
+        rescanCooldownActive={Date.now() < cooldownUntil}
+        onRescan={(hours) => void handleRescan(hours)}
         theme={theme}
         onToggleTheme={toggleTheme}
         viewMode={viewMode}
