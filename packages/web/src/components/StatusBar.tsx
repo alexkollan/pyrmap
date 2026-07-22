@@ -17,6 +17,10 @@ export interface StatusBarProps {
   onToggleViewMode: () => void;
   /** Omitted entirely (no button rendered) when the server has no auth configured. */
   onLogout?: () => void;
+  pushSupported: boolean;
+  pushNeedsInstall: boolean;
+  pushEnabled: boolean;
+  onTogglePush: () => void;
 }
 
 /** Top bar: app name, last-updated time, time-window select, theme/view toggles, auto-refresh indicator, stale-data chip. */
@@ -32,6 +36,10 @@ export function StatusBar({
   viewMode,
   onToggleViewMode,
   onLogout,
+  pushSupported,
+  pushNeedsInstall,
+  pushEnabled,
+  onTogglePush,
 }: StatusBarProps): JSX.Element {
   return (
     <div className="status-bar">
@@ -67,6 +75,16 @@ export function StatusBar({
       {error && (
         <span className="stale-chip">
           Data stale{lastSuccessAt ? ` — last update ${formatLocalTime(lastSuccessAt)}` : ''}
+        </span>
+      )}
+      {pushSupported && (
+        <button type="button" onClick={onTogglePush} aria-label="Toggle push notifications">
+          {pushEnabled ? '🔔 Notifications on' : '🔕 Enable notifications'}
+        </button>
+      )}
+      {pushNeedsInstall && (
+        <span className="push-install-hint" title="Add to Home Screen from Safari's share menu, then reopen from there">
+          Add to Home Screen for notifications
         </span>
       )}
       {onLogout && (

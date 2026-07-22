@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { MapContainer, TileLayer, WMSTileLayer } from 'react-leaflet';
+import { useEffect, useMemo } from 'react';
+import { MapContainer, TileLayer, WMSTileLayer, useMap } from 'react-leaflet';
 import type { Detection, GeoDetection, IncidentReport } from '@pyrmap/shared';
 import { GeoMarker, PolarMarker } from './FireMarker.js';
 import { FireClusterShape } from './FireClusterShape.js';
@@ -9,6 +9,7 @@ import type { Theme } from '../lib/theme.js';
 import type { ViewMode } from '../lib/viewMode.js';
 import type { LayerPrefs } from '../lib/layerPrefs.js';
 import { buildFireClusters } from '../lib/fireClusters.js';
+import type { FocusTarget } from '../lib/focusTarget.js';
 
 const GREECE_CENTER: [number, number] = [38.5, 24.0];
 const INITIAL_ZOOM = 7;
@@ -30,6 +31,15 @@ const TILE_LAYERS: Record<Theme, { url: string; attribution: string }> = {
 const EFFIS_WMS_URL = 'https://maps.effis.emergency.copernicus.eu/effis';
 const EFFIS_ATTRIBUTION = '&copy; <a href="https://forest-fire.emergency.copernicus.eu/">EFFIS</a>';
 
+/** Pans the map to a deep-linked detection (from a push notification click) once, when it appears. */
+function FocusHandler({ target }: { target: FocusTarget | null }): null {
+  const map = useMap();
+  useEffect(() => {
+    if (target) map.setView([target.lat, target.lon], 13);
+  }, [target, map]);
+  return null;
+}
+
 export interface FireMapProps {
   polar: Detection[];
   geo: GeoDetection[];
@@ -37,9 +47,10 @@ export interface FireMapProps {
   theme: Theme;
   viewMode: ViewMode;
   prefs: LayerPrefs;
+  focusTarget?: FocusTarget | null;
 }
 
-export function FireMap({ polar, geo, incidents, theme, viewMode, prefs }: FireMapProps): JSX.Element {
+export function FireMap({ polar, geo, incidents, theme, viewMode, prefs, focusTarget }: FireMapProps): JSX.Element {
   const tileLayer = TILE_LAYERS[theme];
 
   const visiblePolar = useMemo(
@@ -61,6 +72,7 @@ export function FireMap({ polar, geo, incidents, theme, viewMode, prefs }: FireM
 
   return (
     <MapContainer center={GREECE_CENTER} zoom={INITIAL_ZOOM} className="fire-map">
+      <FocusHandler target={focusTarget ?? null} />
       <TileLayer key={theme} url={tileLayer.url} attribution={tileLayer.attribution} />
 
       {prefs.effisBurntAreas && (

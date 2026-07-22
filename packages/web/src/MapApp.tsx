@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FireMap } from './components/FireMap.js';
 import { StatusBar } from './components/StatusBar.js';
 import { Legend } from './components/Legend.js';
@@ -7,6 +7,13 @@ import { useFires } from './hooks/useFires.js';
 import { loadStoredTheme, storeTheme, type Theme } from './lib/theme.js';
 import { loadStoredViewMode, storeViewMode, type ViewMode } from './lib/viewMode.js';
 import { clampClusterKm, loadStoredLayerPrefs, storeLayerPrefs, type LayerPrefs } from './lib/layerPrefs.js';
+import { parseFocusTarget } from './lib/focusTarget.js';
+import {
+  checkPushSupport,
+  disablePushNotifications,
+  enablePushNotifications,
+  isPushEnabled,
+} from './lib/pushNotifications.js';
 
 const DEFAULT_HOURS = 24;
 
@@ -21,6 +28,27 @@ export function MapApp({ onLogout }: MapAppProps): JSX.Element {
   const [viewMode, setViewMode] = useState<ViewMode>(loadStoredViewMode);
   const [layerPrefs, setLayerPrefs] = useState<LayerPrefs>(loadStoredLayerPrefs);
   const { data, loading, error, lastSuccessAt, refresh } = useFires(hours);
+  const [focusTarget] = useState(() => parseFocusTarget(window.location.search));
+  const [pushSupport] = useState(checkPushSupport);
+  const [pushEnabled, setPushEnabled] = useState(false);
+
+  useEffect(() => {
+    isPushEnabled().then(setPushEnabled);
+  }, []);
+
+  async function togglePush(): Promise<void> {
+    if (pushEnabled) {
+      await disablePushNotifications();
+      setPushEnabled(false);
+    } else {
+      try {
+        await enablePushNotifications();
+        setPushEnabled(true);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  }
 
   function toggleTheme(): void {
     const next: Theme = theme === 'dark' ? 'light' : 'dark';
@@ -61,6 +89,10 @@ export function MapApp({ onLogout }: MapAppProps): JSX.Element {
         viewMode={viewMode}
         onToggleViewMode={toggleViewMode}
         onLogout={onLogout}
+        pushSupported={pushSupport.supported}
+        pushNeedsInstall={pushSupport.needsInstall}
+        pushEnabled={pushEnabled}
+        onTogglePush={() => void togglePush()}
       />
       <FireMap
         polar={data?.polar ?? []}
@@ -69,6 +101,7 @@ export function MapApp({ onLogout }: MapAppProps): JSX.Element {
         theme={theme}
         viewMode={viewMode}
         prefs={layerPrefs}
+        focusTarget={focusTarget}
       />
       <LayersPanel activeSources={activeSources} prefs={layerPrefs} onChange={changeLayerPrefs} viewMode={viewMode} />
       <Legend />

@@ -4,6 +4,10 @@ import 'leaflet/dist/leaflet.css';
 import './index.css';
 import { App } from './App.js';
 
+if ('serviceWorker' in navigator) {
+  void navigator.serviceWorker.register('/sw.js');
+}
+
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error('#root element not found');
