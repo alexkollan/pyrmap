@@ -52,4 +52,17 @@ describe('PyrosvestikiXClient', () => {
 
     expect(await client.fetchRecentPosts('999', 10)).toEqual([]);
   });
+
+  it('fetches posts in a time window via start_time/end_time, not since_id', async () => {
+    const fetchImpl = fakeFetch();
+    const client = new PyrosvestikiXClient('tok', fetchImpl);
+
+    await client.fetchPostsInWindow(new Date('2026-07-22T00:00:00Z'), new Date('2026-07-22T12:00:00Z'));
+
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls as [string, RequestInit?][];
+    const url = String(calls[0]![0]);
+    expect(url).toContain('start_time=2026-07-22T00%3A00%3A00.000Z');
+    expect(url).toContain('end_time=2026-07-22T12%3A00%3A00.000Z');
+    expect(url).not.toContain('since_id');
+  });
 });

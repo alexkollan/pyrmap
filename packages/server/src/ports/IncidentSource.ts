@@ -9,4 +9,8 @@ export interface RawPost {
 export interface IncidentSource {
   /** Posts newer than sinceExternalId (null = just the most recent maxResults), for cost-efficient polling. */
   fetchRecentPosts(sinceExternalId: string | null, maxResults: number): Promise<RawPost[]>;
+  /** Every post published in [startTime, endTime], regardless of what's already been fetched —
+   * for rescanning a window rather than incrementally polling. A paid read every time it's
+   * called (no since_id cost-avoidance applies here). */
+  fetchPostsInWindow(startTime: Date, endTime: Date): Promise<RawPost[]>;
 }

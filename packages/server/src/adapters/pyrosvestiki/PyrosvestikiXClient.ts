@@ -53,6 +53,46 @@ export class PyrosvestikiXClient implements IncidentSource {
       clearTimeout(timeout);
     }
 
+    return this.parseTweetsResponse(body);
+  }
+
+  /**
+   * Fetches every post in [startTime, endTime] via start_time/end_time, for rescanning a window.
+   * Never sends since_id — X API v2 gives since_id precedence over start_time when both are
+   * present, which would silently defeat the point of a rescan. Not paginated: the endpoint
+   * returns at most max_results (capped at 100) most-recent posts in the window, and this
+   * account's real posting volume is far below that even at peak wildfire season.
+   */
+  async fetchPostsInWindow(startTime: Date, endTime: Date): Promise<RawPost[]> {
+    const params = new URLSearchParams({
+      max_results: String(MAX_RESULTS),
+      'tweet.fields': 'created_at,text',
+      exclude: 'retweets,replies',
+      start_time: startTime.toISOString(),
+      end_time: endTime.toISOString(),
+    });
+
+    const url = `${API_BASE}/users/${PYROSVESTIKI_USER_ID}/tweets?${params.toString()}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    let body: TweetsResponse;
+    try {
+      const response = await this.fetchImpl(url, {
+        headers: { Authorization: `Bearer ${this.bearerToken}` },
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        throw new Error(`X API request failed: HTTP ${response.status}`);
+      }
+      body = (await response.json()) as TweetsResponse;
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    return this.parseTweetsResponse(body);
+  }
+
+  private parseTweetsResponse(body: TweetsResponse): RawPost[] {
     return (body.data ?? []).map((tweet) => ({
       externalId: tweet.id,
       text: tweet.text,
