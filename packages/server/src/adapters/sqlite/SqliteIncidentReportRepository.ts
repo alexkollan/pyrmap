@@ -75,6 +75,13 @@ export class SqliteIncidentReportRepository implements IncidentReportRepository 
     return rows.map(rowToIncidentReport);
   }
 
+  findExternalIdsSince(source: string, sinceIso: string): Set<string> {
+    const rows = this.db
+      .prepare('SELECT external_id FROM incident_reports WHERE source = ? AND published_at >= ?')
+      .all(source, sinceIso) as { external_id: string }[];
+    return new Set(rows.map((row) => row.external_id));
+  }
+
   recordFetchLog(entry: IncidentFetchLogEntry): void {
     this.db
       .prepare(

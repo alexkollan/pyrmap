@@ -28,6 +28,8 @@ export interface IncidentReportRepository {
   findLatestExternalId(source: string): string | null;
   /** Incident reports with published_at >= sinceIso, newest first. */
   findIncidentReportsSince(sinceIso: string): IncidentReport[];
+  /** external_ids for a source already stored with published_at >= sinceIso — for rescan's "skip what's already resolved" check. */
+  findExternalIdsSince(source: string, sinceIso: string): Set<string>;
   /** Shares the fetch_log table with FireRepository — same shape, so /api/status picks these up automatically. */
   recordFetchLog(entry: IncidentFetchLogEntry): void;
   /** Deletes reports with published_at < cutoffIso. Returns rows deleted. */
