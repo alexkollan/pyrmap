@@ -8,9 +8,9 @@ import { runDecayPass } from '../services/decayService.js';
 import { runRetention } from '../services/retentionService.js';
 import type { FireAlertSource } from '../ports/FireAlertSource.js';
 import type { FireDataSource } from '../ports/FireDataSource.js';
-import type { FireRepository } from '../ports/FireRepository.js';
+import type { FireRepository, InsertedDetection } from '../ports/FireRepository.js';
 import type { IncidentSource } from '../ports/IncidentSource.js';
-import type { IncidentReportRepository } from '../ports/IncidentReportRepository.js';
+import type { IncidentReportRepository, NewIncidentReportRow } from '../ports/IncidentReportRepository.js';
 
 // FIRMS dayRange counts UTC *calendar* days (1 = today only), not trailing 24h — verified live
 // 2026-07-18: with 1, a 23:20 UTC pass vanishes right after midnight. 2 keeps a full trailing day
@@ -29,6 +29,10 @@ export interface SchedulerDeps {
   onLog?: (message: string) => void;
   /** Called whenever a poll/decay/confirmation pass actually changes stored data — drives /api/events (SSE). */
   onUpdate?: () => void;
+  /** Called with newly inserted satellite detections (either tier), once per row — drives push notifications. */
+  onNewDetections?: (detections: InsertedDetection[]) => void;
+  /** Called with newly inserted incident reports, once per row — drives push notifications. */
+  onNewIncidents?: (reports: NewIncidentReportRow[]) => void;
 }
 
 export interface Scheduler {
@@ -66,6 +70,7 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
       dayRange: DAY_RANGE,
       now,
       onLog: deps.onLog,
+      onInserted: deps.onNewDetections,
     });
     return result.rowsInserted > 0;
   };
@@ -76,7 +81,7 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
       if (await ingestOne(sourceId, 'geo')) changed = true;
     }
     for (const { source, config } of deps.alertSources ?? []) {
-      const result = await ingestFireAlerts(source, config, deps.repository, now, deps.onLog);
+      const result = await ingestFireAlerts(source, config, deps.repository, now, deps.onLog, deps.onNewDetections);
       if (result.rowsInserted > 0) changed = true;
     }
     if (changed) deps.onUpdate?.();
@@ -85,7 +90,14 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
   async function pollIncidents(): Promise<void> {
     const incidents = deps.incidentIngestion;
     if (!incidents) return;
-    const result = await ingestIncidentReports(incidents.source, incidents.repository, incidents.sourceId, now, deps.onLog);
+    const result = await ingestIncidentReports(
+      incidents.source,
+      incidents.repository,
+      incidents.sourceId,
+      now,
+      deps.onLog,
+      deps.onNewIncidents,
+    );
     if (result.rowsInserted > 0) deps.onUpdate?.();
   }
 
