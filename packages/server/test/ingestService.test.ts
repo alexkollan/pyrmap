@@ -2,9 +2,9 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SqliteFireRepository } from '../src/adapters/sqlite/SqliteFireRepository.js';
-import { ingestSource } from '../src/services/ingestService.js';
+import { ingestSource, persistNewDetections } from '../src/services/ingestService.js';
 import { FakeFireDataSource } from './fakes/FakeFireDataSource.js';
 
 const fixturesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures');
@@ -87,5 +87,48 @@ describe('ingestSource', () => {
 
     expect(result.error).toBe('network down');
     expect(result.rowsInserted).toBe(0);
+  });
+
+  it("silently drops a row outside Greece's real boundary before insertion", () => {
+    const rows = [
+      {
+        dedupKey: 'a',
+        tier: 'polar' as const,
+        source: 'VIIRS_NOAA20_NRT',
+        latitude: 37.9838,
+        longitude: 23.7275, // Athens — inside Greece
+        acquiredAt: '2026-07-22T12:00:00Z',
+        frp: 1,
+        confidence: null,
+        satellite: null,
+        instrument: null,
+        daynight: null,
+        scanKm: null,
+        trackKm: null,
+      },
+      {
+        dedupKey: 'b',
+        tier: 'polar' as const,
+        source: 'VIIRS_NOAA20_NRT',
+        latitude: 38.4237,
+        longitude: 27.1428, // Izmir, Turkey — outside Greece
+        acquiredAt: '2026-07-22T12:00:00Z',
+        frp: 1,
+        confidence: null,
+        satellite: null,
+        instrument: null,
+        daynight: null,
+        scanKm: null,
+        trackKm: null,
+      },
+    ];
+    const onInserted = vi.fn();
+
+    const insertedCount = persistNewDetections(repo, 'polar', rows, () => new Date('2026-07-22T12:00:00Z'), onInserted);
+
+    expect(insertedCount).toBe(1);
+    const [insertedRows] = onInserted.mock.calls[0]!;
+    expect(insertedRows).toHaveLength(1);
+    expect(insertedRows[0]).toMatchObject({ latitude: 37.9838, longitude: 23.7275 });
   });
 });

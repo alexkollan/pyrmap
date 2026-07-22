@@ -17,7 +17,11 @@ class FakeAlertSource implements FireAlertSource {
   }
 }
 
-// Mirrors the fixture: 3 Greece-bbox circles, 3 outside (Africa/S. America), 1 north of bbox edge is inside (41.9,26.4).
+// Mirrors the fixture: 2 real Greek circles, 3 outside (Africa/S. America), and one (41.933,26.412)
+// that passes the loose rectangular bbox pre-filter below but is actually ~25km inside Bulgaria —
+// verified against the real boundary polygon (see docs/DECISIONS.md 2026-07-22). Kept deliberately
+// to prove the precise isWithinGreece check (wired into persistNewDetections) rejects it even
+// though the coarse rectangular pre-filter here does not.
 const ALERT: FireAlert = {
   productId: 'TEST_PRODUCT',
   acquiredAt: '2026-07-18T09:20:00Z',
@@ -47,10 +51,11 @@ describe('ingestFireAlerts', () => {
   it('inserts only Greece-bbox circles as unconfirmed geo detections with footprint from radius', async () => {
     const result = await ingestFireAlerts(new FakeAlertSource([ALERT]), MTG_CONFIG, repo, NOW);
 
-    expect(result).toEqual({ rowsParsed: 3, rowsInserted: 3, error: null });
+    expect(result).toEqual({ rowsParsed: 3, rowsInserted: 2, error: null });
 
     const geo = repo.findGeoDetectionsSince('2026-07-18T00:00:00Z', false);
-    expect(geo).toHaveLength(3);
+    expect(geo).toHaveLength(2);
+    expect(geo.find((d) => d.latitude === 41.933)).toBeUndefined(); // the Bulgaria point, correctly excluded
     expect(geo.every((d) => d.source === MTG_FIR_SOURCE_ID && d.status === 'unconfirmed')).toBe(true);
 
     const athens = geo.find((d) => d.latitude === 38.212)!;

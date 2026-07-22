@@ -1,6 +1,7 @@
 import type { Tier } from '@pyrmap/shared';
 import { parseFirmsCsv } from '../adapters/firms/csvParser.js';
 import { computeDedupKey } from '../domain/dedup.js';
+import { isWithinGreece } from '../domain/greeceBoundary.js';
 import type { FireDataSource } from '../ports/FireDataSource.js';
 import type { FireRepository, InsertedDetection, NewDetectionRow } from '../ports/FireRepository.js';
 
@@ -91,7 +92,8 @@ export function persistNewDetections(
   now: () => Date,
   onInserted?: (rows: InsertedDetection[]) => void,
 ): number {
-  const inserted = repository.insertDetections(rows);
+  const withinGreece = rows.filter((row) => isWithinGreece(row.latitude, row.longitude));
+  const inserted = repository.insertDetections(withinGreece);
   if (tier === 'geo' && inserted.length > 0) {
     repository.insertUnconfirmedGeoStatus(
       inserted.map((d) => d.id),
