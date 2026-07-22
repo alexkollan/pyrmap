@@ -75,7 +75,7 @@ export async function rescanIncidentReports(
     source: sourceId,
     fetchedAt,
     httpStatus: 200,
-    rowsParsed: posts.length,
+    rowsParsed: rows.length,
     rowsInserted: inserted.length,
     error: null,
   });
