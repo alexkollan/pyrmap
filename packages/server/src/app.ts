@@ -6,11 +6,13 @@ import fastifyStatic from '@fastify/static';
 import type { Config } from './config.js';
 import type { FireRepository } from './ports/FireRepository.js';
 import type { IncidentReportRepository } from './ports/IncidentReportRepository.js';
+import type { PushSubscriptionRepository } from './ports/PushSubscriptionRepository.js';
 import { healthRoutes } from './routes/health.js';
 import { firesRoutes } from './routes/fires.js';
 import { statusRoutes } from './routes/status.js';
 import { eventsRoutes } from './routes/events.js';
 import { authRoutes, requireAuth, type AuthConfig } from './routes/auth.js';
+import { pushPublicRoutes, pushRoutes } from './routes/push.js';
 import { UpdateBus } from './jobs/updateBus.js';
 
 // dist/app.js -> ../public is /app/public in the runtime image (Dockerfile copies web's build there).
@@ -28,10 +30,13 @@ export async function buildApp(
   incidentRepository?: IncidentReportRepository,
   updateBus: UpdateBus = new UpdateBus(),
   auth: AuthConfig | null = null,
+  pushSubscriptionRepository?: PushSubscriptionRepository,
+  vapidPublicKey?: string | null,
 ): Promise<FastifyInstance> {
   const app = Fastify({ logger: { level: config.logLevel } });
 
   await app.register(healthRoutes(repository));
+  await app.register(pushPublicRoutes(vapidPublicKey ?? null));
   if (auth) {
     await app.register(authRoutes(auth));
   }
@@ -43,6 +48,9 @@ export async function buildApp(
     await protectedApp.register(firesRoutes(repository, now, incidentRepository));
     await protectedApp.register(statusRoutes(repository, now));
     await protectedApp.register(eventsRoutes(updateBus));
+    if (pushSubscriptionRepository) {
+      await protectedApp.register(pushRoutes(pushSubscriptionRepository));
+    }
   });
 
   // Serves the built frontend, dev-plan §10.1 pt 3. Skipped if the frontend hasn't been built (e.g. server-only dev).
