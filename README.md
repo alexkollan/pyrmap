@@ -1,6 +1,9 @@
 # PyrMap
 
-A self-hosted near-real-time map of wildfire detections over Greece. Two kinds of satellites
+A self-hosted near-real-time map of wildfire detections over Greece — precisely over Greece:
+satellite detections are filtered against Greece's real border polygon (sourced from
+OpenStreetMap), so nearby Turkish coastline and islands don't show up as Greek hotspots or
+trigger notifications. Two kinds of satellites
 feed it: a **geostationary** one (Meteosat MTG, parked over Europe, scanning every 10 minutes —
 fast but coarse) and four **polar-orbiting** ones (VIIRS ×3 + MODIS, passing a few times a day —
 slow but precise). A fast detection starts life "unconfirmed" and is upgraded to "confirmed"
@@ -49,11 +52,15 @@ covers — the detection is somewhere inside that area, not necessarily at the d
 | Control | What it does |
 |---|---|
 | **Last updated HH:MM** | When the browser last fetched data successfully |
-| **Time window** (6h/12h/24h/48h/72h) | How far back detections are shown. Default 24h. A fire "disappearing" often just means it aged out of the window |
-| **Refresh** | Manual re-fetch. The map also updates live — the server pushes a signal the instant it ingests something new (via Server-Sent Events), so you don't need to press this or wait for the 5-minute fallback poll under normal conditions |
+| **Time window** (6h/12h/24h/48h/72h) | How far back detections are shown. Default 6h; remembered across visits once you change it |
+| **Refresh** | Manual re-fetch of already-ingested data. The map also updates live — the server pushes a signal the instant it ingests something new (via Server-Sent Events), so you don't need to press this or wait for the 5-minute fallback poll under normal conditions |
+| **Re-scan** (6h/12h/24h) | Actually re-queries every source — including a fresh X API read — for that window, regardless of what's already been polled. Unlike Refresh, this can find posts/detections a normal poll missed (e.g. a since-last-seen tweet that failed to geocode the first time). Costs a real paid X API call, so it's gated by a 5-minute client-side cooldown after each use |
+| **🔔/🔕 push-notification toggle** | Subscribes/unsubscribes this browser for push notifications on new detections and reported fires — only shown when the browser supports it. On iOS, only available after "Add to Home Screen" (regular Safari tabs can't receive push) |
 | **Light/Dark mode** | Basemap + UI theme. Dark is the default |
 | **Area/Point view** | Switches marker rendering, described above |
 | **"Data stale" chip** (red) | The last fetch failed; the map still shows the previous good data with its timestamp |
+
+The Layers and Legend panels' collapsed/expanded state is also remembered across visits.
 
 ### The Layers panel (top right)
 
@@ -132,6 +139,12 @@ and the absence of the red "stale" chip to be sure).
 - **Login** (optional, strongly recommended for any public deployment): pick a username and
   password, and generate a session secret with:
   `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`
+- **Push notifications** (optional — the 🔔 bell in the top bar, one push per new detection/
+  reported fire): generate a VAPID keypair with
+  `cd packages/server && pnpm exec web-push generate-vapid-keys`, then set
+  `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` from its output plus `VAPID_SUBJECT` (a `mailto:` address
+  the push services can contact you at, e.g. `mailto:you@example.com`). Leave any of the three
+  unset and the bell simply doesn't appear — no error, just off.
 
 ### 2. Configure
 
@@ -149,6 +162,10 @@ a relative `./data`, which resolves *inside* that ephemeral clone directory and 
 next time the stack is recreated — silently taking the database with it. The directory is created
 automatically if it doesn't exist; plain local `docker compose up` (not through GitOps) doesn't
 need this set at all.
+
+The same data directory also gets a `logs/incidents/` subfolder (created automatically), holding
+one file per UTC day of X posts the geocoder couldn't resolve — full original text plus why, kept
+so a post that was missed or mis-parsed can be diagnosed later instead of silently vanishing.
 
 ### Access control
 
