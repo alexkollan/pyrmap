@@ -16,6 +16,11 @@ export interface Config {
   authUsername: string | null;
   authPassword: string | null;
   sessionSecret: string | null;
+  /** Optional Web Push credentials; when all three are set, new detections/incidents push a
+   * notification to every subscribed device. Generate a keypair with `web-push generate-vapid-keys`. */
+  vapidPublicKey: string | null;
+  vapidPrivateKey: string | null;
+  vapidSubject: string | null;
 }
 
 /** Reads and validates required env vars. Throws with a clear message if invalid. */
@@ -44,5 +49,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     authUsername: env.AUTH_USERNAME || null,
     authPassword: env.AUTH_PASSWORD || null,
     sessionSecret: env.SESSION_SECRET || null,
+    vapidPublicKey: env.VAPID_PUBLIC_KEY || null,
+    vapidPrivateKey: env.VAPID_PRIVATE_KEY || null,
+    vapidSubject: env.VAPID_SUBJECT || null,
   };
 }

@@ -19,6 +19,9 @@ describe('loadConfig', () => {
       authUsername: null,
       authPassword: null,
       sessionSecret: null,
+      vapidPublicKey: null,
+      vapidPrivateKey: null,
+      vapidSubject: null,
     });
   });
 
@@ -44,6 +47,18 @@ describe('loadConfig', () => {
     expect(config.authUsername).toBe('alex');
     expect(config.authPassword).toBe('pw');
     expect(config.sessionSecret).toBe('sec');
+  });
+
+  it('passes through VAPID push credentials when all three are set', () => {
+    const config = loadConfig({
+      ...validEnv,
+      VAPID_PUBLIC_KEY: 'pub',
+      VAPID_PRIVATE_KEY: 'priv',
+      VAPID_SUBJECT: 'mailto:ops@example.com',
+    });
+    expect(config.vapidPublicKey).toBe('pub');
+    expect(config.vapidPrivateKey).toBe('priv');
+    expect(config.vapidSubject).toBe('mailto:ops@example.com');
   });
 
   it('rejects a missing FIRMS_MAP_KEY', () => {
