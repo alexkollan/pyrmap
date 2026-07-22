@@ -126,4 +126,28 @@ describe('geocodeGreekLocation', () => {
     // null, not the wrong pop.-801 "Άγιος".
     expect(geocodeGreekLocation('Άγιο', 'Ιωάννη')).toBeNull();
   });
+
+  it('resolves the popular name "Κεφαλονιά" for the region the gazetteer only had as "Κεφαλληνία"', () => {
+    // Real missed post, 2026-07-22: "...περιοχή Καλλιγάτα Κεφαλονιάς." The gazetteer (built from
+    // official ADM2 records) only had the formal name "Κεφαλληνία"/"Κεφαλληνίας" — but the Fire
+    // Service, like virtually everyone, calls the island/regional unit "Κεφαλονιά" (or
+    // "Κεφαλλονιά", both spellings common). "Καλλιγάτα" itself isn't in the settlements
+    // gazetteer at all (a real small-village coverage gap, not fixable in code), so this
+    // resolves at regional_unit precision, not settlement — still far better than being dropped.
+    const result = geocodeGreekLocation('Καλλιγάτα', 'Κεφαλονιάς');
+    expect(result).toEqual({ latitude: 38.25, longitude: 20.5, precision: 'regional_unit' });
+  });
+
+  it('peels a trailing broader-area qualifier off a 3-word clause when it is not itself a region ("Βορίζια Ηρακλείου Κρήτης")', () => {
+    // Real missed post, 2026-07-22: "...περιοχή Βορίζια Ηρακλείου Κρήτης." extractLocationPhrase's
+    // "last word = region" rule captures settlement="Βορίζια Ηρακλείου", regionGenitive="Κρήτης"
+    // — but "Κρήτης" (Crete) is a wider periphery, not one of the 54 regional units, so it never
+    // resolves. Crete has 4 regional units (Ηράκλειο, Χανιά, Ρέθυμνο, Λασίθι) and posts often
+    // name the specific one AND the island for extra disambiguation. "Ηρακλείου" — the real
+    // regional unit — got swallowed into the settlement half of the naive split; peeling it back
+    // off recovers it. "Βορίζια" itself isn't in the settlements gazetteer, so this resolves at
+    // regional_unit precision (Ηράκλειο), not settlement.
+    const result = geocodeGreekLocation('Βορίζια Ηρακλείου', 'Κρήτης');
+    expect(result).toEqual({ latitude: 35.3297, longitude: 25.1299, precision: 'regional_unit' });
+  });
 });

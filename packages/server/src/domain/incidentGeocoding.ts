@@ -178,6 +178,26 @@ export function geocodeGreekLocation(settlement: string, regionGenitive: string 
       const best = pickIfDominant(rejoined);
       if (best) return { latitude: best.lat, longitude: best.lon, precision: 'settlement' };
     }
+
+    // The unresolved trailing word may itself be a broader qualifier (e.g. "Κρήτης" — Crete, an
+    // island/periphery, not one of the 54 regional units) appended after the real regional unit,
+    // which the naive split then swallowed into the settlement half ("Βορίζια Ηρακλείου Κρήτης"
+    // -> settlement="Βορίζια Ηρακλείου", region="Κρήτης" unresolved). If the settlement's own
+    // last word resolves as a region, peel it off and discard the trailing qualifier entirely.
+    const settlementWords = settlement.split(/\s+/);
+    if (settlementWords.length > 1) {
+      const peeledRegion = regionByName.get(foldAccents(settlementWords[settlementWords.length - 1]!));
+      if (peeledRegion) {
+        const peeledSettlement = settlementWords.slice(0, -1).join(' ');
+        const peeledCandidates = settlementCandidates(peeledSettlement);
+        if (peeledCandidates.length > 0) {
+          const best = pickBestInRegion(peeledCandidates, peeledRegion);
+          return { latitude: best.lat, longitude: best.lon, precision: 'settlement' };
+        }
+        return { latitude: peeledRegion.lat, longitude: peeledRegion.lon, precision: 'regional_unit' };
+      }
+    }
+
     return null;
   }
 
