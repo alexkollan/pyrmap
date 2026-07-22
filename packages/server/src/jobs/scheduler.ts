@@ -11,6 +11,7 @@ import type { FireDataSource } from '../ports/FireDataSource.js';
 import type { FireRepository, InsertedDetection } from '../ports/FireRepository.js';
 import type { IncidentSource } from '../ports/IncidentSource.js';
 import type { IncidentReportRepository, NewIncidentReportRow } from '../ports/IncidentReportRepository.js';
+import type { GeocodingSource } from '../ports/GeocodingSource.js';
 
 // FIRMS dayRange counts UTC *calendar* days (1 = today only), not trailing 24h — verified live
 // 2026-07-18: with 1, a 23:20 UTC pass vanishes right after midnight. 2 keeps a full trailing day
@@ -25,6 +26,8 @@ export interface SchedulerDeps {
   alertSources?: Array<{ source: FireAlertSource; config: AlertSourceConfig }>;
   /** Optional text-based incident source (Fire Service X account); polled every minute on its own job — each poll is a paid API call, but since_id makes an empty poll (nothing new) free. */
   incidentIngestion?: { source: IncidentSource; repository: IncidentReportRepository; sourceId: string };
+  /** Optional live geocoder (e.g. Nominatim) tried before the offline gazetteer for incident reports. */
+  geocodingSource?: GeocodingSource;
   now?: () => Date;
   onLog?: (message: string) => void;
   /** Called whenever a poll/decay/confirmation pass actually changes stored data — drives /api/events (SSE). */
@@ -97,6 +100,7 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
       now,
       deps.onLog,
       deps.onNewIncidents,
+      deps.geocodingSource,
     );
     if (result.rowsInserted > 0) deps.onUpdate?.();
   }

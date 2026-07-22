@@ -9,6 +9,7 @@ import { MockFireDataSource } from './adapters/firms/MockFireDataSource.js';
 import { EumetsatFciClient } from './adapters/eumetsat/EumetsatFciClient.js';
 import { LsaSafFrpPixelClient } from './adapters/lsasaf/LsaSafFrpPixelClient.js';
 import { PyrosvestikiXClient } from './adapters/pyrosvestiki/PyrosvestikiXClient.js';
+import { NominatimClient } from './adapters/nominatim/NominatimClient.js';
 import { resolveSources } from './domain/sourceResolution.js';
 import { startScheduler } from './jobs/scheduler.js';
 import { UpdateBus } from './jobs/updateBus.js';
@@ -37,6 +38,11 @@ async function main(): Promise<void> {
       sourceId: PYROSVESTIKI_SOURCE_ID,
     };
   }
+
+  // Live geocoding for incident reports, tried before the offline gazetteer — no API key needed
+  // (OpenStreetMap Nominatim), so it's on whenever incident ingestion itself is; a failed or
+  // empty lookup falls back to the offline gazetteer, never drops a post because of this alone.
+  const geocodingSource = incidentIngestion ? new NominatimClient() : undefined;
 
   // Push notifications, off by default — requires all three VAPID_* vars (mirrors the auth
   // pattern: a half-configured .env should never silently half-work).
@@ -130,6 +136,7 @@ async function main(): Promise<void> {
     effectiveSources: effective,
     alertSources,
     incidentIngestion,
+    geocodingSource,
     onLog: (message) => app.log.info(message),
     onUpdate: () => updateBus.publish(),
     onNewDetections: pushSubscriptionRepository

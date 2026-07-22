@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SqliteIncidentReportRepository } from '../src/adapters/sqlite/SqliteIncidentReportRepository.js';
 import { ingestIncidentReports } from '../src/services/incidentIngestService.js';
 import type { IncidentSource, RawPost } from '../src/ports/IncidentSource.js';
+import type { GeocodingSource } from '../src/ports/GeocodingSource.js';
 
 const NOW = () => new Date('2026-07-20T13:00:00Z');
 const SOURCE_ID = 'PYROSVESTIKI_X';
@@ -98,6 +99,38 @@ describe('ingestIncidentReports', () => {
     onInserted.mockClear();
     await ingestIncidentReports(new FakeIncidentSource(POSTS), repo, SOURCE_ID, NOW, undefined, onInserted);
     expect(onInserted).not.toHaveBeenCalled();
+  });
+
+  it('prefers a configured geocodingSource over the offline gazetteer when it resolves', async () => {
+    const geocodingSource: GeocodingSource = {
+      geocode: async () => ({ latitude: 1.111, longitude: 2.222, precision: 'settlement' }),
+    };
+
+    await ingestIncidentReports(new FakeIncidentSource(POSTS), repo, SOURCE_ID, NOW, undefined, undefined, geocodingSource);
+
+    const stored = repo.findIncidentReportsSince('2026-07-20T00:00:00Z');
+    expect(stored).toHaveLength(1);
+    // Distinct from the offline gazetteer's 37.8989/23.8718 for the same post — proves the live
+    // source's result is actually used, not silently ignored.
+    expect(stored[0]).toMatchObject({ latitude: 1.111, longitude: 2.222 });
+  });
+
+  it('falls back to the offline gazetteer, unchanged, when the geocodingSource finds nothing', async () => {
+    const geocodingSource: GeocodingSource = { geocode: async () => null };
+
+    const result = await ingestIncidentReports(
+      new FakeIncidentSource(POSTS),
+      repo,
+      SOURCE_ID,
+      NOW,
+      undefined,
+      undefined,
+      geocodingSource,
+    );
+
+    expect(result).toEqual({ postsFetched: 3, rowsInserted: 1, error: null });
+    const stored = repo.findIncidentReportsSince('2026-07-20T00:00:00Z');
+    expect(stored[0]).toMatchObject({ latitude: 37.8989, longitude: 23.8718, precision: 'settlement' });
   });
 
   it('records a fetch_log error and does not throw when the source fails', async () => {

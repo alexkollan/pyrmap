@@ -4,8 +4,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SqliteFireRepository } from '../src/adapters/sqlite/SqliteFireRepository.js';
+import { SqliteIncidentReportRepository } from '../src/adapters/sqlite/SqliteIncidentReportRepository.js';
 import { startScheduler } from '../src/jobs/scheduler.js';
 import { FakeFireDataSource } from './fakes/FakeFireDataSource.js';
+import type { IncidentSource, RawPost } from '../src/ports/IncidentSource.js';
+import type { GeocodingSource } from '../src/ports/GeocodingSource.js';
 
 const fixturesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures');
 const readFixture = (name: string): string => readFileSync(path.join(fixturesDir, name), 'utf-8');
@@ -92,5 +95,39 @@ describe('startScheduler', () => {
     expect(onNewDetections).toHaveBeenCalled();
     const [rows] = onNewDetections.mock.calls[0]!;
     expect(rows.every((r: { source: string }) => r.source === 'VIIRS_NOAA20_NRT')).toBe(true);
+  });
+
+  it('threads geocodingSource through to poll-incidents, preferring it over the offline gazetteer', async () => {
+    const incidentRepo = new SqliteIncidentReportRepository(path.join(tmpDir, 'incidents.db'));
+    const post: RawPost = {
+      externalId: '1',
+      text: 'Υπό μερικό έλεγχο τέθηκε η #πυρκαγιά στο Κορωπί Αττικής.',
+      publishedAt: '2026-07-15T12:00:00Z',
+      url: 'https://x.com/pyrosvestiki/status/1',
+    };
+    const incidentSource: IncidentSource = { fetchRecentPosts: async () => [post] };
+    const geocodingSource: GeocodingSource = {
+      geocode: async () => ({ latitude: 9.999, longitude: 8.888, precision: 'settlement' }),
+    };
+
+    const dataSource = new FakeFireDataSource({});
+    const scheduler = startScheduler({
+      dataSource,
+      repository: repo,
+      effectiveSources: {},
+      incidentIngestion: { source: incidentSource, repository: incidentRepo, sourceId: 'TEST_SOURCE' },
+      geocodingSource,
+      now: () => new Date('2026-07-15T12:00:00Z'),
+    });
+    scheduler.stop();
+
+    await scheduler.pollIncidents();
+    incidentRepo.close();
+
+    const incidentRepoCheck = new SqliteIncidentReportRepository(path.join(tmpDir, 'incidents.db'));
+    const stored = incidentRepoCheck.findIncidentReportsSince('2026-07-15T00:00:00Z');
+    incidentRepoCheck.close();
+    expect(stored).toHaveLength(1);
+    expect(stored[0]).toMatchObject({ latitude: 9.999, longitude: 8.888 });
   });
 });

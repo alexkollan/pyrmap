@@ -2,6 +2,7 @@ import { isFireIncidentPost, extractLocationPhrase } from '../domain/incidentPar
 import { geocodeGreekLocation } from '../domain/incidentGeocoding.js';
 import type { IncidentSource } from '../ports/IncidentSource.js';
 import type { IncidentReportRepository, NewIncidentReportRow } from '../ports/IncidentReportRepository.js';
+import type { GeocodingSource } from '../ports/GeocodingSource.js';
 
 /** Posts per poll when there's no since_id yet (first run); since_id makes subsequent polls cost near-zero. */
 const POSTS_PER_POLL = 10;
@@ -31,6 +32,7 @@ export async function ingestIncidentReports(
   now: () => Date,
   onLog?: (message: string) => void,
   onInserted?: (rows: NewIncidentReportRow[]) => void,
+  geocodingSource?: GeocodingSource,
 ): Promise<IncidentIngestResult> {
   const fetchedAt = now().toISOString();
   const sinceId = repository.findLatestExternalId(sourceId);
@@ -66,7 +68,14 @@ export async function ingestIncidentReports(
       continue;
     }
 
-    const geocoded = geocodeGreekLocation(location.settlement, location.regionGenitive);
+    // Nominatim understands the raw declined Greek phrase directly and covers far more small
+    // villages than the offline gazetteer (live-verified 2026-07-22, see docs/DECISIONS.md); the
+    // offline gazetteer is the fallback for when it's unreachable, rate-limited, or genuinely has
+    // no match, not a replacement for it.
+    const query = location.regionGenitive ? `${location.settlement} ${location.regionGenitive}` : location.settlement;
+    const geocoded =
+      (geocodingSource ? await geocodingSource.geocode(query) : null) ??
+      geocodeGreekLocation(location.settlement, location.regionGenitive);
     if (!geocoded) {
       skipped++;
       onLog?.(
