@@ -3,6 +3,7 @@ import { loadConfig } from './config.js';
 import { buildApp } from './app.js';
 import { SqliteFireRepository } from './adapters/sqlite/SqliteFireRepository.js';
 import { SqliteIncidentReportRepository } from './adapters/sqlite/SqliteIncidentReportRepository.js';
+import { SqlitePushSubscriptionRepository } from './adapters/sqlite/SqlitePushSubscriptionRepository.js';
 import { FirmsClient } from './adapters/firms/FirmsClient.js';
 import { MockFireDataSource } from './adapters/firms/MockFireDataSource.js';
 import { EumetsatFciClient } from './adapters/eumetsat/EumetsatFciClient.js';
@@ -11,6 +12,7 @@ import { PyrosvestikiXClient } from './adapters/pyrosvestiki/PyrosvestikiXClient
 import { resolveSources } from './domain/sourceResolution.js';
 import { startScheduler } from './jobs/scheduler.js';
 import { UpdateBus } from './jobs/updateBus.js';
+import { initializePushVapid, notifyNewDetections, notifyNewIncidents } from './services/pushNotificationService.js';
 import type { AlertSourceConfig } from './services/alertIngestService.js';
 import type { FireAlertSource } from './ports/FireAlertSource.js';
 import type { FireDataSource } from './ports/FireDataSource.js';
@@ -36,6 +38,18 @@ async function main(): Promise<void> {
     };
   }
 
+  // Push notifications, off by default — requires all three VAPID_* vars (mirrors the auth
+  // pattern: a half-configured .env should never silently half-work).
+  let pushSubscriptionRepository: SqlitePushSubscriptionRepository | undefined;
+  const vapid =
+    config.vapidPublicKey && config.vapidPrivateKey && config.vapidSubject
+      ? { publicKey: config.vapidPublicKey, privateKey: config.vapidPrivateKey, subject: config.vapidSubject }
+      : null;
+  if (vapid) {
+    pushSubscriptionRepository = new SqlitePushSubscriptionRepository(config.dbPath);
+    initializePushVapid(vapid);
+  }
+
   // Single-user auth, off by default (local dev). Requires all three so a partially-filled .env
   // never accidentally leaves the map open when the operator thought it was locked down.
   const auth: AuthConfig | null =
@@ -44,7 +58,17 @@ async function main(): Promise<void> {
       : null;
 
   const updateBus = new UpdateBus();
-  const app = await buildApp(config, repository, undefined, undefined, incidentRepository, updateBus, auth);
+  const app = await buildApp(
+    config,
+    repository,
+    undefined,
+    undefined,
+    incidentRepository,
+    updateBus,
+    auth,
+    pushSubscriptionRepository,
+    config.vapidPublicKey,
+  );
 
   if (auth) {
     app.log.info('Auth enabled — /api/fires, /api/status, /api/events require login');
@@ -94,6 +118,12 @@ async function main(): Promise<void> {
     app.log.warn('X_BEARER_TOKEN not set — Fire Service incident-reports layer disabled');
   }
 
+  if (pushSubscriptionRepository) {
+    app.log.info('Push notifications enabled (VAPID configured)');
+  } else {
+    app.log.warn('VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY/VAPID_SUBJECT not fully set — push notifications disabled');
+  }
+
   startScheduler({
     dataSource,
     repository,
@@ -102,6 +132,12 @@ async function main(): Promise<void> {
     incidentIngestion,
     onLog: (message) => app.log.info(message),
     onUpdate: () => updateBus.publish(),
+    onNewDetections: pushSubscriptionRepository
+      ? (detections) => void notifyNewDetections(pushSubscriptionRepository, detections, (m) => app.log.info(m))
+      : undefined,
+    onNewIncidents: pushSubscriptionRepository
+      ? (reports) => void notifyNewIncidents(pushSubscriptionRepository, reports, (m) => app.log.info(m))
+      : undefined,
   });
 
   try {
