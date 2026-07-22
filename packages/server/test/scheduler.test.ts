@@ -39,6 +39,7 @@ describe('startScheduler', () => {
       dataSource,
       repository: repo,
       effectiveSources: { MSG_NRT: 'geo', VIIRS_NOAA20_NRT: 'polar' },
+      logsDir: path.join(tmpDir, 'logs'),
       now: () => new Date('2026-07-15T12:00:00Z'),
     });
     scheduler.stop();
@@ -65,6 +66,7 @@ describe('startScheduler', () => {
       dataSource,
       repository: repo,
       effectiveSources: { VIIRS_NOAA20_NRT: 'polar' },
+      logsDir: path.join(tmpDir, 'logs'),
       now: () => new Date('2026-07-15T12:00:00Z'),
       onUpdate,
     });
@@ -86,6 +88,7 @@ describe('startScheduler', () => {
       dataSource,
       repository: repo,
       effectiveSources: { VIIRS_NOAA20_NRT: 'polar' },
+      logsDir: path.join(tmpDir, 'logs'),
       now: () => new Date('2026-07-15T12:00:00Z'),
       onNewDetections,
     });
@@ -117,6 +120,7 @@ describe('startScheduler', () => {
       effectiveSources: {},
       incidentIngestion: { source: incidentSource, repository: incidentRepo, sourceId: 'TEST_SOURCE' },
       geocodingSource,
+      logsDir: path.join(tmpDir, 'logs'),
       now: () => new Date('2026-07-15T12:00:00Z'),
     });
     scheduler.stop();

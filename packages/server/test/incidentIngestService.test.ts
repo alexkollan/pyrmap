@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -57,7 +57,7 @@ afterEach(() => {
 
 describe('ingestIncidentReports', () => {
   it('inserts only the fire post that both classifies and geocodes, skipping the rest', async () => {
-    const result = await ingestIncidentReports(new FakeIncidentSource(POSTS), repo, SOURCE_ID, NOW);
+    const result = await ingestIncidentReports(new FakeIncidentSource(POSTS), repo, SOURCE_ID, NOW, path.join(tmpDir, 'logs'));
 
     expect(result).toEqual({ postsFetched: 3, rowsInserted: 1, error: null });
 
@@ -73,23 +73,23 @@ describe('ingestIncidentReports', () => {
   });
 
   it('passes the latest stored external_id as since_id on the next poll (cost control)', async () => {
-    await ingestIncidentReports(new FakeIncidentSource(POSTS), repo, SOURCE_ID, NOW);
+    await ingestIncidentReports(new FakeIncidentSource(POSTS), repo, SOURCE_ID, NOW, path.join(tmpDir, 'logs'));
 
     const secondSource = new FakeIncidentSource([]);
-    await ingestIncidentReports(secondSource, repo, SOURCE_ID, NOW);
+    await ingestIncidentReports(secondSource, repo, SOURCE_ID, NOW, path.join(tmpDir, 'logs'));
 
     expect(secondSource.lastSinceId).toBe('2079180444990403006');
   });
 
   it('re-ingesting the same posts inserts 0 new rows', async () => {
-    await ingestIncidentReports(new FakeIncidentSource(POSTS), repo, SOURCE_ID, NOW);
-    const second = await ingestIncidentReports(new FakeIncidentSource(POSTS), repo, SOURCE_ID, NOW);
+    await ingestIncidentReports(new FakeIncidentSource(POSTS), repo, SOURCE_ID, NOW, path.join(tmpDir, 'logs'));
+    const second = await ingestIncidentReports(new FakeIncidentSource(POSTS), repo, SOURCE_ID, NOW, path.join(tmpDir, 'logs'));
     expect(second.rowsInserted).toBe(0);
   });
 
   it('calls onInserted with the newly inserted rows, and does not call it when nothing new was inserted', async () => {
     const onInserted = vi.fn();
-    await ingestIncidentReports(new FakeIncidentSource(POSTS), repo, SOURCE_ID, NOW, undefined, onInserted);
+    await ingestIncidentReports(new FakeIncidentSource(POSTS), repo, SOURCE_ID, NOW, path.join(tmpDir, 'logs'), undefined, onInserted);
 
     expect(onInserted).toHaveBeenCalledTimes(1);
     const [rows] = onInserted.mock.calls[0]!;
@@ -97,7 +97,7 @@ describe('ingestIncidentReports', () => {
     expect(rows[0]).toMatchObject({ text: 'Υπό μερικό έλεγχο τέθηκε η #πυρκαγιά στο Κορωπί Αττικής.' });
 
     onInserted.mockClear();
-    await ingestIncidentReports(new FakeIncidentSource(POSTS), repo, SOURCE_ID, NOW, undefined, onInserted);
+    await ingestIncidentReports(new FakeIncidentSource(POSTS), repo, SOURCE_ID, NOW, path.join(tmpDir, 'logs'), undefined, onInserted);
     expect(onInserted).not.toHaveBeenCalled();
   });
 
@@ -106,7 +106,16 @@ describe('ingestIncidentReports', () => {
       geocode: async () => ({ latitude: 1.111, longitude: 2.222, precision: 'settlement' }),
     };
 
-    await ingestIncidentReports(new FakeIncidentSource(POSTS), repo, SOURCE_ID, NOW, undefined, undefined, geocodingSource);
+    await ingestIncidentReports(
+      new FakeIncidentSource(POSTS),
+      repo,
+      SOURCE_ID,
+      NOW,
+      path.join(tmpDir, 'logs'),
+      undefined,
+      undefined,
+      geocodingSource,
+    );
 
     const stored = repo.findIncidentReportsSince('2026-07-20T00:00:00Z');
     expect(stored).toHaveLength(1);
@@ -123,6 +132,7 @@ describe('ingestIncidentReports', () => {
       repo,
       SOURCE_ID,
       NOW,
+      path.join(tmpDir, 'logs'),
       undefined,
       undefined,
       geocodingSource,
@@ -140,8 +150,18 @@ describe('ingestIncidentReports', () => {
       },
     };
 
-    const result = await ingestIncidentReports(failing, repo, SOURCE_ID, NOW);
+    const result = await ingestIncidentReports(failing, repo, SOURCE_ID, NOW, path.join(tmpDir, 'logs'));
 
     expect(result.error).toBe('X API down');
+  });
+
+  it('logs a no-location failure to a per-day file under logsDir', async () => {
+    const logsDir = path.join(tmpDir, 'logs');
+    await ingestIncidentReports(new FakeIncidentSource(POSTS), repo, SOURCE_ID, NOW, logsDir);
+
+    const logFile = path.join(logsDir, '2026-07-20.log');
+    const lines = readFileSync(logFile, 'utf-8').trim().split('\n');
+    const entries = lines.map((line) => JSON.parse(line));
+    expect(entries.some((e) => e.reason === 'no-location' && e.text.includes('37 αγροτοδασικές'))).toBe(true);
   });
 });

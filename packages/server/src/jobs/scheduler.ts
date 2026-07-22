@@ -28,6 +28,8 @@ export interface SchedulerDeps {
   incidentIngestion?: { source: IncidentSource; repository: IncidentReportRepository; sourceId: string };
   /** Optional live geocoder (e.g. Nominatim) tried before the offline gazetteer for incident reports. */
   geocodingSource?: GeocodingSource;
+  /** Directory failed incident-report resolutions are logged to, one file per UTC day. */
+  logsDir: string;
   now?: () => Date;
   onLog?: (message: string) => void;
   /** Called whenever a poll/decay/confirmation pass actually changes stored data — drives /api/events (SSE). */
@@ -98,6 +100,7 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
       incidents.repository,
       incidents.sourceId,
       now,
+      deps.logsDir,
       deps.onLog,
       deps.onNewIncidents,
       deps.geocodingSource,

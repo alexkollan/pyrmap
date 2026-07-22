@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { FIRMS_SOURCES, MTG_FIR_SOURCE_ID, MSG_FRP_PIXEL_SOURCE_ID, PYROSVESTIKI_SOURCE_ID } from '@pyrmap/shared';
 import { loadConfig } from './config.js';
 import { buildApp } from './app.js';
@@ -137,6 +138,9 @@ async function main(): Promise<void> {
     alertSources,
     incidentIngestion,
     geocodingSource,
+    // Not yet its own env var — Task 6 wires a proper INCIDENT_LOGS_DIR; for now this rides
+    // alongside the sqlite file under the same runtime-state directory (CLAUDE.md §9 `data/`).
+    logsDir: path.join(path.dirname(config.dbPath), 'logs', 'incidents'),
     onLog: (message) => app.log.info(message),
     onUpdate: () => updateBus.publish(),
     onNewDetections: pushSubscriptionRepository
