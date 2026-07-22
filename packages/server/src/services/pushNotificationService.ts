@@ -1,11 +1,12 @@
-// any-ok not needed: web-push added 2026-07-22 for push notifications (explicit user request),
-// outside the closed dependency whitelist — see docs/DECISIONS.md.
+// dependency-whitelist deviation: web-push added 2026-07-22 for push notifications (explicit user
+// request), outside the closed dependency whitelist — see docs/DECISIONS.md.
 import webpush from 'web-push';
 import { buildDetectionPayload, buildIncidentPayload, type NotificationPayload } from '../domain/notificationPayload.js';
 import type { PushSubscriptionRepository } from '../ports/PushSubscriptionRepository.js';
 import type { NewDetectionRow } from '../ports/FireRepository.js';
 import type { NewIncidentReportRow } from '../ports/IncidentReportRepository.js';
 
+/** VAPID identity for signing push messages: the keypair plus a mailto: contact required by the protocol. */
 export interface VapidConfig {
   publicKey: string;
   privateKey: string;
@@ -17,6 +18,7 @@ export function initializePushVapid(vapid: VapidConfig): void {
   webpush.setVapidDetails(vapid.subject, vapid.publicKey, vapid.privateKey);
 }
 
+/** Matches web-push's own sendNotification signature, so a real or fake implementation can be injected. */
 export type SendFn = typeof webpush.sendNotification;
 
 /** Sends one payload to every stored subscription; prunes subscriptions the push service reports

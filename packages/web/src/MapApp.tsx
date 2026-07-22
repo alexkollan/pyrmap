@@ -38,8 +38,12 @@ export function MapApp({ onLogout }: MapAppProps): JSX.Element {
 
   async function togglePush(): Promise<void> {
     if (pushEnabled) {
-      await disablePushNotifications();
-      setPushEnabled(false);
+      try {
+        await disablePushNotifications();
+        setPushEnabled(false);
+      } catch (err) {
+        console.error(err);
+      }
     } else {
       try {
         await enablePushNotifications();

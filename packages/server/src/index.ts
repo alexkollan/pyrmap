@@ -67,7 +67,7 @@ async function main(): Promise<void> {
     updateBus,
     auth,
     pushSubscriptionRepository,
-    config.vapidPublicKey,
+    vapid?.publicKey ?? null,
   );
 
   if (auth) {

@@ -49,11 +49,12 @@ export async function enablePushNotifications(): Promise<void> {
     applicationServerKey: urlBase64ToUint8Array(publicKey),
   });
 
-  await fetch('/api/push/subscribe', {
+  const subscribeResponse = await fetch('/api/push/subscribe', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(subscriptionToPayload(subscription)),
   });
+  if (!subscribeResponse.ok) throw new Error('Failed to register push subscription with the server');
 }
 
 /** Unsubscribes this device both from the browser's push manager and the server's record of it. */
