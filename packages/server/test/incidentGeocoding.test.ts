@@ -53,7 +53,26 @@ describe('geocodeGreekLocation', () => {
   });
 
   it('returns null for an ambiguous settlement with no region to disambiguate it', () => {
-    // "Άγιος Γεώργιος" (Saint George) exists dozens of times across Greece.
+    // "Άγιος Γεώργιος" (Saint George) exists 61x across Greece; the top two by population
+    // (3853, 2045) are comparably sized — no dominant candidate, so this must stay null rather
+    // than guess the single biggest of 61 similarly-sized villages nationwide.
     expect(geocodeGreekLocation('Άγιος Γεώργιος', null)).toBeNull();
+  });
+
+  it('picks the dominant candidate when a settlement name is nationally ambiguous but one place clearly outweighs the rest', () => {
+    // Real missed post, 2026-07-22: "...στο δήμο Νάουσας." with no region word. Three places are
+    // named Νάουσα nationally (Imathia, pop. 19887; two on Paros, pop. 3134 and 0) — 19887 dwarfs
+    // the other two combined (3134), so unlike the "Άγιος Γεώργιος" case above this should resolve.
+    const result = geocodeGreekLocation('Νάουσας', null);
+    expect(result).toEqual({ latitude: 40.6294, longitude: 22.0681, precision: 'settlement' });
+  });
+
+  it('resolves a genitive-plural municipality name via the "-ών" -> "-ές" declension pattern', () => {
+    // Real missed post, 2026-07-22: "...στο δήμο Αχαρνών." Greek municipality names that are
+    // plural "-ές" nouns (Αχαρνές = Menidi, Attica, pop. 99346) take genitive "-ών"; the previous
+    // declension transforms (only "+ς" and trailing "-ς" strip) never matched it, so it always
+    // fell through to zero candidates even though the settlement is in the gazetteer.
+    const result = geocodeGreekLocation('Αχαρνών', null);
+    expect(result).toEqual({ latitude: 38.0833, longitude: 23.7333, precision: 'settlement' });
   });
 });

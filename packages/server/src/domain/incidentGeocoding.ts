@@ -69,15 +69,21 @@ const ABBREVIATION_RE = /^Ν\.\s+/u;
  * case, undeclined; posts write them in whatever case the sentence needs. Tries, in order: as
  * written; with the common "Ν." -> "Νέα" abbreviation expanded; "+ς" for the masculine -ος
  * accusative pattern ("Ωρωπό" -> "Ωρωπός"); "-ς" stripped for the feminine/consonant-stem
- * genitive pattern ("Σμύρνης" -> "Σμύρνη") — each tried against both the as-written and the
- * abbreviation-expanded form. Genuinely irregular declensions (rare) simply won't match and the
- * post is skipped rather than mismapped. */
+ * genitive pattern ("Σμύρνης" -> "Σμύρνη"); "-ών" -> "-ές" for the plural-toponym genitive
+ * pattern used by "δήμος X-ών" names ("Αχαρνών" -> "Αχαρνές") — each tried against both the
+ * as-written and the abbreviation-expanded form. Genuinely irregular declensions (rare) simply
+ * won't match and the post is skipped rather than mismapped. */
 function settlementCandidates(name: string): Settlement[] {
   const expanded = ABBREVIATION_RE.test(name) ? name.replace(ABBREVIATION_RE, 'Νέα ') : null;
 
   for (const base of expanded ? [name, expanded] : [name]) {
     const folded = foldAccents(base);
-    const variants = [folded, `${folded}ς`, folded.endsWith('ς') ? folded.slice(0, -1) : null];
+    const variants = [
+      folded,
+      `${folded}ς`,
+      folded.endsWith('ς') ? folded.slice(0, -1) : null,
+      folded.endsWith('ων') ? `${folded.slice(0, -2)}ες` : null,
+    ];
     for (const variant of variants) {
       if (!variant) continue;
       const match = settlementsByName.get(variant);
@@ -109,6 +115,25 @@ function pickBestInRegion(candidates: Settlement[], region: { lat: number; lon: 
 }
 
 /**
+ * When a post gives no region to disambiguate with (e.g. "στο δήμο Νάουσας." — no trailing
+ * region word) and the settlement name matches more than one place nationally, only guess when
+ * one candidate clearly dominates (population greater than all the others combined) — otherwise
+ * return null rather than pick arbitrarily among comparably-sized namesakes.
+ *
+ * Real, live miss: three places nationally are named "Νάουσα" (Imathia, pop. 19887; two
+ * near-zero-population ones on Paros) — 19887 dwarfs the other two combined (3134), so this
+ * should resolve. Contrast "Άγιος Γεώργιος" (61 namesakes, top two 3853/2045 — no dominant
+ * candidate), which must still return null: guessing the single biggest of 61 similarly-sized
+ * villages nationwide is not the same confidence as this case.
+ */
+function pickIfDominant(candidates: Settlement[]): Settlement | null {
+  if (candidates.length === 1) return candidates[0]!;
+  const [top, ...rest] = [...candidates].sort((a, b) => b.population - a.population);
+  const restPopulation = rest.reduce((sum, candidate) => sum + candidate.population, 0);
+  return top!.population > restPopulation ? top! : null;
+}
+
+/**
  * Resolves a Greek place-name pair (settlement, region-in-genitive-case) to coordinates.
  * Tiered, never guesses: settlement matched near the right region -> settlement precision;
  * only the region resolves -> its centroid, coarser; neither resolves -> null (skip the post).
@@ -118,7 +143,7 @@ export function geocodeGreekLocation(settlement: string, regionGenitive: string 
 
   const candidates = settlementCandidates(settlement);
   if (candidates.length > 0) {
-    const best = region ? pickBestInRegion(candidates, region) : candidates.length === 1 ? candidates[0]! : null;
+    const best = region ? pickBestInRegion(candidates, region) : pickIfDominant(candidates);
     if (best) return { latitude: best.lat, longitude: best.lon, precision: 'settlement' };
   }
 
