@@ -40,6 +40,9 @@ class FakeIncidentSource implements IncidentSource {
     this.lastSinceId = sinceExternalId;
     return this.posts;
   }
+  async fetchPostsInWindow(): Promise<RawPost[]> {
+    throw new Error('FakeIncidentSource.fetchPostsInWindow is not implemented — this fake only supports fetchRecentPosts');
+  }
 }
 
 let tmpDir: string;
@@ -146,6 +149,9 @@ describe('ingestIncidentReports', () => {
   it('records a fetch_log error and does not throw when the source fails', async () => {
     const failing: IncidentSource = {
       fetchRecentPosts: async () => {
+        throw new Error('X API down');
+      },
+      fetchPostsInWindow: async () => {
         throw new Error('X API down');
       },
     };

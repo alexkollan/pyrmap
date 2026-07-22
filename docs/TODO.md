@@ -16,7 +16,3 @@ FIRMS/EUMETSAT/LSASAF/X data flowing, `/api/status` showing real rowsInserted).
 - Any task adding an env var must update `config.ts` + `.env` + `.env.example` +
   `docker-compose.yml`'s `environment:` block, all four — see `CLAUDE.md` §9 and
   `docs/DECISIONS.md` 2026-07-20 for the miss that cost a full session to diagnose.
-- `IncidentSource.fetchPostsInWindow` (added for rescan) broke `FakeIncidentSource` and an inline
-  `IncidentSource` literal in `test/incidentIngestService.test.ts` under strict TS — invisible to
-  `pnpm -r build && pnpm test` (tsc -b only covers `src/`, vitest doesn't type-check tests); fix
-  those two implementers next time that file is touched.
