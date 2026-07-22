@@ -57,6 +57,14 @@ export const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX idx_incident_reports_published ON incident_reports (published_at);
   `,
+  `
+  CREATE TABLE push_subscriptions (
+    endpoint TEXT PRIMARY KEY,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  `,
 ];
 
 /** Applies pending migrations in order, tracked by index in a `migrations` table. */
