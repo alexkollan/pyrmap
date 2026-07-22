@@ -63,11 +63,9 @@ function isInsidePolygon(lon: number, lat: number, polygon: Polygon): boolean {
 }
 
 /**
- * True if (latitude, longitude) falls within Greece's actual land boundary (mainland + every
- * island), not a bounding-box approximation. Verified against 15 real coordinate pairs including
- * islands a few km from the Turkish coast (Kastellorizo, Samos, Chios, Lesbos, Rhodes, Kos) —
- * see docs/DECISIONS.md 2026-07-22. Used to filter satellite detections before they're ever
- * stored, since FIRMS's Area API only supports a rectangular bounding box, not a custom shape.
+ * True if (latitude, longitude) in decimal degrees is within Greece's actual land boundary
+ * (mainland and islands). Uses precise boundary geometry because some Greek islands are only
+ * km from Turkey's coast.
  */
 export function isWithinGreece(latitude: number, longitude: number): boolean {
   for (let i = 0; i < boundary.coordinates.length; i++) {
