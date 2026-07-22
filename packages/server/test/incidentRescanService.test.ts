@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { SqliteFireRepository } from '../src/adapters/sqlite/SqliteFireRepository.js';
 import { SqliteIncidentReportRepository } from '../src/adapters/sqlite/SqliteIncidentReportRepository.js';
 import { rescanIncidentReports } from '../src/services/incidentRescanService.js';
 import type { IncidentSource, RawPost } from '../src/ports/IncidentSource.js';
@@ -10,11 +11,13 @@ const NOW = () => new Date('2026-07-22T18:00:00Z');
 const SOURCE_ID = 'PYROSVESTIKI_X';
 
 let tmpDir: string;
+let dbPath: string;
 let repo: SqliteIncidentReportRepository;
 
 beforeEach(() => {
   tmpDir = mkdtempSync(path.join(tmpdir(), 'pyrmap-rescan-test-'));
-  repo = new SqliteIncidentReportRepository(path.join(tmpDir, 'test.db'));
+  dbPath = path.join(tmpDir, 'test.db');
+  repo = new SqliteIncidentReportRepository(dbPath);
 });
 
 afterEach(() => {
@@ -64,7 +67,7 @@ describe('rescanIncidentReports', () => {
 
     const result = await rescanIncidentReports(source, repo, SOURCE_ID, 6, NOW, path.join(tmpDir, 'logs'));
 
-    expect(result).toEqual({ postsChecked: 1, rowsInserted: 0, postsSkippedAlreadyResolved: 1, postsFailed: 0 });
+    expect(result).toEqual({ postsChecked: 1, rowsInserted: 0, postsSkippedAlreadyResolved: 1, postsFailed: 0, error: null });
   });
 
   it('resolves and inserts a previously-missed post', async () => {
@@ -79,7 +82,7 @@ describe('rescanIncidentReports', () => {
 
     const result = await rescanIncidentReports(source, repo, SOURCE_ID, 6, NOW, path.join(tmpDir, 'logs'));
 
-    expect(result).toEqual({ postsChecked: 1, rowsInserted: 1, postsSkippedAlreadyResolved: 0, postsFailed: 0 });
+    expect(result).toEqual({ postsChecked: 1, rowsInserted: 1, postsSkippedAlreadyResolved: 0, postsFailed: 0, error: null });
     expect(repo.findIncidentReportsSince('2026-07-22T00:00:00Z')).toHaveLength(1);
   });
 
@@ -90,6 +93,29 @@ describe('rescanIncidentReports', () => {
 
     const result = await rescanIncidentReports(source, repo, SOURCE_ID, 6, NOW, path.join(tmpDir, 'logs'));
 
-    expect(result).toEqual({ postsChecked: 1, rowsInserted: 0, postsSkippedAlreadyResolved: 0, postsFailed: 1 });
+    expect(result).toEqual({ postsChecked: 1, rowsInserted: 0, postsSkippedAlreadyResolved: 0, postsFailed: 1, error: null });
+  });
+
+  it('records a fetch_log error and does not throw when the source fails', async () => {
+    const failing: IncidentSource = {
+      fetchRecentPosts: async () => {
+        throw new Error('rescan must use fetchPostsInWindow, not fetchRecentPosts');
+      },
+      fetchPostsInWindow: async () => {
+        throw new Error('X API down');
+      },
+    };
+
+    const result = await rescanIncidentReports(failing, repo, SOURCE_ID, 6, NOW, path.join(tmpDir, 'logs'));
+
+    expect(result).toEqual({ postsChecked: 0, rowsInserted: 0, postsSkippedAlreadyResolved: 0, postsFailed: 0, error: 'X API down' });
+
+    const fireRepo = new SqliteFireRepository(dbPath);
+    try {
+      const lastFetch = fireRepo.findLastFetchPerSource()[SOURCE_ID];
+      expect(lastFetch?.ok).toBe(false);
+    } finally {
+      fireRepo.close();
+    }
   });
 });
