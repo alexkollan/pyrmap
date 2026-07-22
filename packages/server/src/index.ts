@@ -13,6 +13,7 @@ import { PyrosvestikiXClient } from './adapters/pyrosvestiki/PyrosvestikiXClient
 import { NominatimClient } from './adapters/nominatim/NominatimClient.js';
 import { resolveSources } from './domain/sourceResolution.js';
 import { startScheduler } from './jobs/scheduler.js';
+import type { Scheduler } from './jobs/scheduler.js';
 import { UpdateBus } from './jobs/updateBus.js';
 import { initializePushVapid, notifyNewDetections, notifyNewIncidents } from './services/pushNotificationService.js';
 import type { AlertSourceConfig } from './services/alertIngestService.js';
@@ -25,6 +26,7 @@ import type { AuthConfig } from './routes/auth.js';
 async function main(): Promise<void> {
   const config = loadConfig();
   const repository = new SqliteFireRepository(config.dbPath);
+  const logsDir = path.join(path.dirname(config.dbPath), 'logs', 'incidents');
 
   // The Fire Service's X posts, geocoded — a different concept from satellite detections, so a
   // separate repository/table (own connection to the same file; WAL mode makes that safe).
@@ -65,6 +67,7 @@ async function main(): Promise<void> {
       : null;
 
   const updateBus = new UpdateBus();
+  let scheduler: Scheduler | null = null;
   const app = await buildApp(
     config,
     repository,
@@ -75,6 +78,7 @@ async function main(): Promise<void> {
     auth,
     pushSubscriptionRepository,
     vapid?.publicKey ?? null,
+    () => scheduler,
   );
 
   if (auth) {
@@ -131,16 +135,14 @@ async function main(): Promise<void> {
     app.log.warn('VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY/VAPID_SUBJECT not fully set — push notifications disabled');
   }
 
-  startScheduler({
+  scheduler = startScheduler({
     dataSource,
     repository,
     effectiveSources: effective,
     alertSources,
     incidentIngestion,
     geocodingSource,
-    // Not yet its own env var — Task 6 wires a proper INCIDENT_LOGS_DIR; for now this rides
-    // alongside the sqlite file under the same runtime-state directory (CLAUDE.md §9 `data/`).
-    logsDir: path.join(path.dirname(config.dbPath), 'logs', 'incidents'),
+    logsDir,
     onLog: (message) => app.log.info(message),
     onUpdate: () => updateBus.publish(),
     onNewDetections: pushSubscriptionRepository

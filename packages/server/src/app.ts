@@ -13,6 +13,8 @@ import { statusRoutes } from './routes/status.js';
 import { eventsRoutes } from './routes/events.js';
 import { authRoutes, requireAuth, type AuthConfig } from './routes/auth.js';
 import { pushPublicRoutes, pushRoutes } from './routes/push.js';
+import { rescanRoutes } from './routes/rescan.js';
+import type { Scheduler } from './jobs/scheduler.js';
 import { UpdateBus } from './jobs/updateBus.js';
 
 // dist/app.js -> ../public is /app/public in the runtime image (Dockerfile copies web's build there).
@@ -32,6 +34,7 @@ export async function buildApp(
   auth: AuthConfig | null = null,
   pushSubscriptionRepository?: PushSubscriptionRepository,
   vapidPublicKey?: string | null,
+  getScheduler?: () => Scheduler | null,
 ): Promise<FastifyInstance> {
   const app = Fastify({ logger: { level: config.logLevel } });
 
@@ -50,6 +53,9 @@ export async function buildApp(
     await protectedApp.register(eventsRoutes(updateBus));
     if (pushSubscriptionRepository) {
       await protectedApp.register(pushRoutes(pushSubscriptionRepository));
+    }
+    if (getScheduler) {
+      await protectedApp.register(rescanRoutes(getScheduler));
     }
   });
 

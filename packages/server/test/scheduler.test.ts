@@ -134,4 +134,57 @@ describe('startScheduler', () => {
     expect(stored).toHaveLength(1);
     expect(stored[0]).toMatchObject({ latitude: 9.999, longitude: 8.888 });
   });
+
+  it('rescan() re-polls satellite sources and rescans incidents over the requested window', async () => {
+    const dataSource = new FakeFireDataSource({ VIIRS_NOAA20_NRT: readFixture('viirs_sample.csv') });
+    const incidentRepo = new SqliteIncidentReportRepository(path.join(tmpDir, 'incidents.db'));
+    const post: RawPost = {
+      externalId: '1',
+      text: 'Υπό μερικό έλεγχο τέθηκε η #πυρκαγιά στο Κορωπί Αττικής.',
+      publishedAt: '2026-07-15T11:00:00Z',
+      url: 'https://x.com/pyrosvestiki/status/1',
+    };
+    const incidentSource: IncidentSource = {
+      fetchRecentPosts: async () => [],
+      fetchPostsInWindow: async () => [post],
+    };
+
+    const scheduler = startScheduler({
+      dataSource,
+      repository: repo,
+      effectiveSources: { VIIRS_NOAA20_NRT: 'polar' },
+      incidentIngestion: { source: incidentSource, repository: incidentRepo, sourceId: 'TEST_SOURCE' },
+      logsDir: path.join(tmpDir, 'logs'),
+      now: () => new Date('2026-07-15T12:00:00Z'),
+    });
+    scheduler.stop();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const result = await scheduler.rescan(6);
+    incidentRepo.close();
+
+    expect(result.satellite.rowsInserted).toBeGreaterThanOrEqual(0); // dedup may make this 0 on a re-poll of the same fixture
+    expect(result.incidents).toEqual({
+      postsChecked: 1,
+      rowsInserted: 1,
+      postsSkippedAlreadyResolved: 0,
+      postsFailed: 0,
+      error: null,
+    });
+  });
+
+  it('rescan() returns incidents: null when no incident source is configured', async () => {
+    const dataSource = new FakeFireDataSource({ VIIRS_NOAA20_NRT: readFixture('viirs_sample.csv') });
+    const scheduler = startScheduler({
+      dataSource,
+      repository: repo,
+      effectiveSources: { VIIRS_NOAA20_NRT: 'polar' },
+      logsDir: path.join(tmpDir, 'logs'),
+      now: () => new Date('2026-07-15T12:00:00Z'),
+    });
+    scheduler.stop();
+
+    const result = await scheduler.rescan(6);
+    expect(result.incidents).toBeNull();
+  });
 });

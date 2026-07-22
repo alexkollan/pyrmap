@@ -6,6 +6,7 @@ import { ingestIncidentReports } from '../services/incidentIngestService.js';
 import { runConfirmationPass } from '../services/confirmationService.js';
 import { runDecayPass } from '../services/decayService.js';
 import { runRetention } from '../services/retentionService.js';
+import { rescanIncidentReports, type RescanResult } from '../services/incidentRescanService.js';
 import type { FireAlertSource } from '../ports/FireAlertSource.js';
 import type { FireDataSource } from '../ports/FireDataSource.js';
 import type { FireRepository, InsertedDetection } from '../ports/FireRepository.js';
@@ -47,6 +48,7 @@ export interface Scheduler {
   pollIncidents: () => Promise<void>;
   decay: () => void;
   retention: () => void;
+  rescan: (hours: 6 | 12 | 24) => Promise<{ satellite: { rowsInserted: number }; incidents: RescanResult | null }>;
 }
 
 /**
@@ -108,6 +110,37 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
     if (result.rowsInserted > 0) deps.onUpdate?.();
   }
 
+  async function rescan(hours: 6 | 12 | 24): Promise<{ satellite: { rowsInserted: number }; incidents: RescanResult | null }> {
+    let satelliteInserted = 0;
+    for (const sourceId of geoSourceIds) {
+      if (await ingestOne(sourceId, 'geo')) satelliteInserted++;
+    }
+    for (const sourceId of polarSourceIds) {
+      if (await ingestOne(sourceId, 'polar')) satelliteInserted++;
+    }
+    for (const { source, config } of deps.alertSources ?? []) {
+      const result = await ingestFireAlerts(source, config, deps.repository, now, deps.onLog, deps.onNewDetections);
+      if (result.rowsInserted > 0) satelliteInserted++;
+    }
+
+    const incidents = deps.incidentIngestion;
+    const incidentResult = incidents
+      ? await rescanIncidentReports(
+          incidents.source,
+          incidents.repository,
+          incidents.sourceId,
+          hours,
+          now,
+          deps.logsDir,
+          deps.geocodingSource,
+          deps.onLog,
+        )
+      : null;
+
+    deps.onUpdate?.();
+    return { satellite: { rowsInserted: satelliteInserted }, incidents: incidentResult };
+  }
+
   async function pollPolar(): Promise<void> {
     let changed = false;
     for (const sourceId of polarSourceIds) {
@@ -159,5 +192,6 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
     pollIncidents,
     decay,
     retention,
+    rescan,
   };
 }
