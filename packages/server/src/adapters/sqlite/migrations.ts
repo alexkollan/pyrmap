@@ -65,6 +65,9 @@ export const MIGRATIONS: readonly string[] = [
     created_at TEXT NOT NULL
   );
   `,
+  `
+  ALTER TABLE incident_reports ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 /** Applies pending migrations in order, tracked by index in a `migrations` table. */

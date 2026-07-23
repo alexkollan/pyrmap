@@ -30,6 +30,12 @@ export interface IncidentReportRepository {
   findIncidentReportsSince(sinceIso: string): IncidentReport[];
   /** external_ids for a source already stored with published_at >= sinceIso — for rescan's "skip what's already resolved" check. */
   findExternalIdsSince(source: string, sinceIso: string): Set<string>;
+  /** Corrects a mis-geocoded report's coordinates and marks it settlement-precision (a human placed it exactly). False if id doesn't exist. */
+  updateIncidentReportLocation(id: number, latitude: number, longitude: number): boolean;
+  /** Marks a report hidden forever: excluded from findIncidentReportsSince, but the row (and its external_id) stays, permanently blocking re-insertion. False if id doesn't exist. */
+  hideIncidentReport(id: number): boolean;
+  /** Removes a report entirely — unlike hideIncidentReport, its external_id can be re-inserted by a future poll/rescan. False if id doesn't exist. */
+  deleteIncidentReport(id: number): boolean;
   /** Shares the fetch_log table with FireRepository — same shape, so /api/status picks these up automatically. */
   recordFetchLog(entry: IncidentFetchLogEntry): void;
   /** Deletes reports with published_at < cutoffIso. Returns rows deleted. */

@@ -70,7 +70,7 @@ export class SqliteIncidentReportRepository implements IncidentReportRepository 
 
   findIncidentReportsSince(sinceIso: string): IncidentReport[] {
     const rows = this.db
-      .prepare(`SELECT * FROM incident_reports WHERE published_at >= ? ORDER BY published_at DESC`)
+      .prepare(`SELECT * FROM incident_reports WHERE published_at >= ? AND hidden = 0 ORDER BY published_at DESC`)
       .all(sinceIso) as IncidentReportRow[];
     return rows.map(rowToIncidentReport);
   }
@@ -80,6 +80,22 @@ export class SqliteIncidentReportRepository implements IncidentReportRepository 
       .prepare('SELECT external_id FROM incident_reports WHERE source = ? AND published_at >= ?')
       .all(source, sinceIso) as { external_id: string }[];
     return new Set(rows.map((row) => row.external_id));
+  }
+
+  updateIncidentReportLocation(id: number, latitude: number, longitude: number): boolean {
+    return (
+      this.db
+        .prepare(`UPDATE incident_reports SET latitude = ?, longitude = ?, precision = 'settlement' WHERE id = ?`)
+        .run(latitude, longitude, id).changes === 1
+    );
+  }
+
+  hideIncidentReport(id: number): boolean {
+    return this.db.prepare('UPDATE incident_reports SET hidden = 1 WHERE id = ?').run(id).changes === 1;
+  }
+
+  deleteIncidentReport(id: number): boolean {
+    return this.db.prepare('DELETE FROM incident_reports WHERE id = ?').run(id).changes === 1;
   }
 
   recordFetchLog(entry: IncidentFetchLogEntry): void {
