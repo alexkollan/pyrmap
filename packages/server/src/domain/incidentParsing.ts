@@ -39,8 +39,9 @@ const PHRASE_END = '\\s*(?:[.,]|$)';
 // municipality") — the most specific/authoritative phrasing when present, tried first, but only
 // when it's not itself preceded by an "assistance from" framing (see below).
 const DISTRICT_RE = new RegExp(`(?:του\\s+δήμου|στ(?:ο|ον)\\s+δήμο)\\s+(${PHRASE})${PHRASE_END}`, 'gu');
-// Generic "στο/στη/στην/στον [(την) περιοχή] X Y" fallback.
-const GENERIC_RE = new RegExp(`στ(?:ο|η|ην|ον)(?:\\s+(?:την\\s+)?περιοχή)?\\s+(${PHRASE})${PHRASE_END}`, 'u');
+// Generic "στο/στη/στην/στον [(την) περιοχή] X Y" fallback. Global so extractLocationPhrase can
+// scan every occurrence, not just the first (see its doc comment).
+const GENERIC_RE = new RegExp(`στ(?:ο|η|ην|ον)(?:\\s+(?:την\\s+)?περιοχή)?\\s+(${PHRASE})${PHRASE_END}`, 'gu');
 
 // Leading generic-noun qualifiers ("island X") that aren't part of the place name itself.
 const QUALIFIER_RE = /^(?:νήσος|νησί|νησιού)\s+/u;
@@ -76,6 +77,14 @@ function parsePhrase(rawPhrase: string): ExtractedLocation {
  * and broke it — a real post ("...σε Ε.Ι.Χ. αυτοκίνητο σε περιοχή του δήμου Ν. Σμύρνης
  * Αττικής...") was skipped entirely because of it. Excluding assistance-framed δήμου mentions by
  * their own wording, rather than by sentence position, fixes both cases without the false cut.
+ *
+ * The GENERIC_RE fallback scans every match rather than stopping at the first: real miss,
+ * 2026-07-23 — "...στην περιοχή Δερβένι, στο Ωραιόκαστρο Θεσσαλονίκης." names a specific
+ * micro-locality first (no region, since it's implicitly within what follows) and only the
+ * second clause carries the actual disambiguating region. Taking just the first match left
+ * "Δερβένι" (a common toponym, 7 national namesakes) with no region to disambiguate it, and it
+ * resolved to the wrong one. A later match with a region is strictly more informative than an
+ * earlier one without, so it wins; the first match is kept only as a fallback if none has one.
  */
 export function extractLocationPhrase(text: string): ExtractedLocation | null {
   for (const match of text.matchAll(DISTRICT_RE)) {
@@ -84,8 +93,11 @@ export function extractLocationPhrase(text: string): ExtractedLocation | null {
     return parsePhrase(match[1]!);
   }
 
-  const generic = GENERIC_RE.exec(text);
-  if (generic) return parsePhrase(generic[1]!);
-
-  return null;
+  let fallback: ExtractedLocation | null = null;
+  for (const match of text.matchAll(GENERIC_RE)) {
+    const candidate = parsePhrase(match[1]!);
+    if (candidate.regionGenitive) return candidate;
+    fallback ??= candidate;
+  }
+  return fallback;
 }

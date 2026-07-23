@@ -73,6 +73,17 @@ describe('extractLocationPhrase', () => {
     });
   });
 
+  it('prefers a later "στο X Y" clause with a region over an earlier region-less one', () => {
+    // Real miss, 2026-07-23: the post names a specific micro-locality ("Δερβένι", a common
+    // toponym with 7 national namesakes) before the municipality+region that actually
+    // disambiguates it. Taking only the first "στο/στη/στην" clause left "Δερβένι" with no
+    // region, which then resolved to an unrelated same-named village in Korinthia (Peloponnese)
+    // instead of the real fire near Oraiokastro, Thessaloniki.
+    const text =
+      'Πυρκαγιά σε αγροτοδασικη έκταση στην περιοχή Δερβένι, στο Ωραιόκαστρο Θεσσαλονίκης. Κινητοποιήθηκαν 50 #πυροσβέστες με 2 ομάδες πεζοπόρων της 2ης ΕΜΟΔΕ, 12 οχήματα και 2 Ε/Π.';
+    expect(extractLocationPhrase(text)).toEqual({ settlement: 'Ωραιόκαστρο', regionGenitive: 'Θεσσαλονίκης' });
+  });
+
   it('skips an assistance-framed "του δήμου X" clause that comes BEFORE the real fire location, not just after', () => {
     // The existing assistance-exclusion test only covers the framing appearing in a later
     // sentence; the exclusion check itself is purely local (looks at the ~60 chars before the
