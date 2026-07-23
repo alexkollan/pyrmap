@@ -1,6 +1,7 @@
-import type { IncidentPrecision } from '@pyrmap/shared';
+import type { IncidentPrecision, LocationSearchResult } from '@pyrmap/shared';
 import type { GeocodedLocation } from '../../domain/incidentGeocoding.js';
 import type { GeocodingSource } from '../../ports/GeocodingSource.js';
+import type { LocationSearchSource } from '../../ports/LocationSearchSource.js';
 
 const API_URL = 'https://nominatim.openstreetmap.org/search';
 // Nominatim's usage policy requires a descriptive User-Agent identifying the app, not a generic
@@ -30,6 +31,7 @@ interface NominatimResult {
   lat: string;
   lon: string;
   addresstype?: string;
+  display_name?: string;
 }
 
 /**
@@ -41,7 +43,7 @@ interface NominatimResult {
  * Only the first result whose addresstype is a real place (SETTLEMENT_ADDRESS_TYPES or
  * REGION_ADDRESS_TYPES) is used — see the comment on those sets for why this can't be skipped.
  */
-export class NominatimClient implements GeocodingSource {
+export class NominatimClient implements GeocodingSource, LocationSearchSource {
   private lastCallAt = 0;
 
   constructor(
@@ -50,7 +52,7 @@ export class NominatimClient implements GeocodingSource {
     private readonly sleep: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   ) {}
 
-  async geocode(query: string): Promise<GeocodedLocation | null> {
+  private async fetchResults(query: string): Promise<NominatimResult[]> {
     const waitMs = this.lastCallAt + MIN_INTERVAL_MS - this.now();
     if (waitMs > 0) await this.sleep(waitMs);
     this.lastCallAt = this.now();
@@ -64,19 +66,22 @@ export class NominatimClient implements GeocodingSource {
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
-    let results: NominatimResult[];
     try {
       const response = await this.fetchImpl(`${API_URL}?${params.toString()}`, {
         headers: { 'User-Agent': USER_AGENT },
         signal: controller.signal,
       });
-      if (!response.ok) return null;
-      results = (await response.json()) as NominatimResult[];
+      if (!response.ok) return [];
+      return (await response.json()) as NominatimResult[];
     } catch {
-      return null;
+      return [];
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  async geocode(query: string): Promise<GeocodedLocation | null> {
+    const results = await this.fetchResults(query);
 
     for (const result of results) {
       const addressType = result.addresstype ?? '';
@@ -95,5 +100,18 @@ export class NominatimClient implements GeocodingSource {
     }
 
     return null;
+  }
+
+  /** Unlike geocode(), returns every result with no addresstype filtering — for a human to choose from, not an automated pipeline. */
+  async search(query: string): Promise<LocationSearchResult[]> {
+    const results = await this.fetchResults(query);
+    const found: LocationSearchResult[] = [];
+    for (const result of results) {
+      const latitude = Number(result.lat);
+      const longitude = Number(result.lon);
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
+      found.push({ displayName: result.display_name ?? '', latitude, longitude });
+    }
+    return found;
   }
 }

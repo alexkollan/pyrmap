@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { LocationSearchResult } from '@pyrmap/shared';
 import { NominatimClient } from '../src/adapters/nominatim/NominatimClient.js';
 
 // Real response shape for "Βορίζια Ηρακλείου Κρήτης", live-verified 2026-07-22 — see docs/DECISIONS.md.
@@ -9,6 +10,7 @@ const REAL_VILLAGE_RESULT = [
     lon: '24.8470873',
     addresstype: 'village',
     name: 'Βορίζια',
+    display_name: 'Βορίζια',
   },
 ];
 
@@ -46,9 +48,9 @@ const REAL_ROADS_THEN_MUNICIPALITY_RESULT = [
 // neighbourhood, and a peninsula all share the name — none of which is the actual region, and
 // none of which is a type this client trusts. Must return null, not a wrong coordinate.
 const REAL_ALL_UNTRUSTED_RESULT = [
-  { place_id: 1, lat: '37.9995238', lon: '23.7228379', addresstype: 'railway', name: 'Αττική' },
-  { place_id: 2, lat: '37.9960777', lon: '23.7224191', addresstype: 'neighbourhood', name: 'Αττική' },
-  { place_id: 3, lat: '37.9946543', lon: '23.7994025', addresstype: 'peninsula', name: 'Αττική' },
+  { place_id: 1, lat: '37.9995238', lon: '23.7228379', addresstype: 'railway', name: 'Αττική', display_name: 'Αττική' },
+  { place_id: 2, lat: '37.9960777', lon: '23.7224191', addresstype: 'neighbourhood', name: 'Αττική', display_name: 'Αττική' },
+  { place_id: 3, lat: '37.9946543', lon: '23.7994025', addresstype: 'peninsula', name: 'Αττική', display_name: 'Αττική' },
 ];
 
 function fakeFetch(body: unknown, status = 200): typeof fetch {
@@ -128,6 +130,50 @@ describe('NominatimClient', () => {
 
     currentTime += 50; // only 50ms later, well under the 1100ms minimum spacing
     await client.geocode('b');
+    expect(sleep).toHaveBeenCalledTimes(1);
+    expect(sleep.mock.calls[0]![0]).toBeGreaterThan(1000);
+  });
+});
+
+describe('NominatimClient.search', () => {
+  it('returns every result unfiltered by addresstype, unlike geocode()', async () => {
+    // Same fixture geocode() rejects entirely (all untrusted types) — search() must still surface them,
+    // since a human is choosing, not an automated pipeline.
+    const client = new NominatimClient(fakeFetch(REAL_ALL_UNTRUSTED_RESULT));
+    const results = await client.search('Αττική');
+    expect(results).toEqual<LocationSearchResult[]>([
+      { displayName: 'Αττική', latitude: 37.9995238, longitude: 23.7228379 },
+      { displayName: 'Αττική', latitude: 37.9960777, longitude: 23.7224191 },
+      { displayName: 'Αττική', latitude: 37.9946543, longitude: 23.7994025 },
+    ]);
+  });
+
+  it('returns an empty array when Nominatim finds nothing', async () => {
+    const client = new NominatimClient(fakeFetch([]));
+    expect(await client.search('nonexistent')).toEqual([]);
+  });
+
+  it('returns an empty array (never throws) on a non-2xx response or network error', async () => {
+    const client = new NominatimClient(fakeFetch({}, 503));
+    expect(await client.search('anything')).toEqual([]);
+
+    const throwing = new NominatimClient(
+      vi.fn(async () => {
+        throw new Error('network down');
+      }) as unknown as typeof fetch,
+    );
+    expect(await throwing.search('anything')).toEqual([]);
+  });
+
+  it('shares the same request throttle as geocode()', async () => {
+    let currentTime = 1_700_000_000_000;
+    const now = vi.fn(() => currentTime);
+    const sleep = vi.fn(async () => undefined);
+    const client = new NominatimClient(fakeFetch(REAL_VILLAGE_RESULT), now, sleep);
+
+    await client.geocode('a');
+    currentTime += 50;
+    await client.search('b');
     expect(sleep).toHaveBeenCalledTimes(1);
     expect(sleep.mock.calls[0]![0]).toBeGreaterThan(1000);
   });
