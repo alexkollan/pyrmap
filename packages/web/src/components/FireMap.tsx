@@ -14,12 +14,17 @@ import type { FocusTarget } from '../lib/focusTarget.js';
 const GREECE_CENTER: [number, number] = [38.5, 24.0];
 const INITIAL_ZOOM = 7;
 
-const OSM_ATTRIBUTION = '&copy; OpenStreetMap contributors';
 const CARTO_ATTRIBUTION =
   '&copy; OpenStreetMap contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
+// Light mode was tile.openstreetmap.org directly; that server's usage policy explicitly excludes
+// production/heavy-traffic apps (docs/DECISIONS.md 2026-07-23) — switched to CARTO's light_all,
+// the same provider dark mode already uses, same attribution requirement already met.
 const TILE_LAYERS: Record<Theme, { url: string; attribution: string }> = {
-  light: { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: OSM_ATTRIBUTION },
+  light: {
+    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    attribution: CARTO_ATTRIBUTION,
+  },
   dark: {
     url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
     attribution: CARTO_ATTRIBUTION,
