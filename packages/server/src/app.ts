@@ -3,6 +3,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Fastify, { type FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
+// New dependency, outside the historically closed list — explicit user request for security
+// hardening now that the app is public (docs/DECISIONS.md 2026-07-23). Official Fastify-team
+// package, MIT licensed.
+import fastifyHelmet from '@fastify/helmet';
+// Same justification as fastifyHelmet above.
+import fastifyRateLimit from '@fastify/rate-limit';
 import type { Config } from './config.js';
 import type { FireRepository } from './ports/FireRepository.js';
 import type { IncidentReportRepository } from './ports/IncidentReportRepository.js';
@@ -39,7 +45,29 @@ export async function buildApp(
   getScheduler?: () => Scheduler | null,
   locationSearchSource?: LocationSearchSource,
 ): Promise<FastifyInstance> {
-  const app = Fastify({ logger: { level: config.logLevel } });
+  const app = Fastify({ logger: { level: config.logLevel }, trustProxy: true });
+
+  await app.register(fastifyHelmet, {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", 'https://www.googletagmanager.com'],
+        connectSrc: [
+          "'self'",
+          'https://www.google-analytics.com',
+          'https://*.google-analytics.com',
+          'https://*.analytics.google.com',
+          'https://api.open-meteo.com',
+        ],
+        imgSrc: ["'self'", 'data:', 'https://basemaps.cartocdn.com', 'https://maps.effis.emergency.copernicus.eu'],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        frameAncestors: ["'self'"],
+      },
+    },
+  });
+  await app.register(fastifyRateLimit, { max: 100, timeWindow: '1 minute' });
 
   await app.register(healthRoutes(repository));
   await app.register(pushPublicRoutes(vapidPublicKey ?? null));

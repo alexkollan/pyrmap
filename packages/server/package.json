@@ -10,6 +10,8 @@
     "dev:mock": "node scripts/dev-mock.mjs"
   },
   "dependencies": {
+    "@fastify/helmet": "^13.1.0",
+    "@fastify/rate-limit": "^11.1.0",
     "@fastify/static": "^8.0.4",
     "@pyrmap/shared": "workspace:*",
     "better-sqlite3": "^11.7.0",

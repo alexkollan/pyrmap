@@ -63,20 +63,24 @@ export function authRoutes(auth: AuthConfig) {
   return async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     const secure = process.env.NODE_ENV === 'production';
 
-    app.post<{ Body: LoginBody }>('/api/login', async (request, reply) => {
-      const { username, password } = request.body ?? {};
-      if (
-        typeof username !== 'string' ||
-        typeof password !== 'string' ||
-        !credentialsMatch(username, password, auth.username, auth.password)
-      ) {
-        reply.code(401);
-        return { ok: false };
-      }
-      const token = signSession({ username, expiresAt: Date.now() + SESSION_MS }, auth.sessionSecret);
-      setSessionCookie(reply, token, secure);
-      return { ok: true };
-    });
+    app.post<{ Body: LoginBody }>(
+      '/api/login',
+      { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } },
+      async (request, reply) => {
+        const { username, password } = request.body ?? {};
+        if (
+          typeof username !== 'string' ||
+          typeof password !== 'string' ||
+          !credentialsMatch(username, password, auth.username, auth.password)
+        ) {
+          reply.code(401);
+          return { ok: false };
+        }
+        const token = signSession({ username, expiresAt: Date.now() + SESSION_MS }, auth.sessionSecret);
+        setSessionCookie(reply, token, secure);
+        return { ok: true };
+      },
+    );
 
     app.post('/api/logout', async (request, reply) => {
       clearSessionCookie(reply, secure);
