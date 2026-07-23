@@ -32,7 +32,11 @@ export class PyrosvestikiXClient implements IncidentSource {
     const params = new URLSearchParams({
       max_results: String(clamped),
       'tweet.fields': 'created_at,text',
-      exclude: 'retweets,replies',
+      // NOT 'replies': X API v2 treats a self-reply (this account threading its own follow-up
+      // update onto its own prior tweet — its normal way of posting "fire contained" updates) as
+      // a reply like any other, so excluding replies silently drops those from the timeline
+      // entirely — they're never even fetched, so no amount of downstream logging can see them.
+      exclude: 'retweets',
     });
     if (sinceExternalId) params.set('since_id', sinceExternalId);
 
@@ -67,7 +71,11 @@ export class PyrosvestikiXClient implements IncidentSource {
     const params = new URLSearchParams({
       max_results: String(MAX_RESULTS),
       'tweet.fields': 'created_at,text',
-      exclude: 'retweets,replies',
+      // NOT 'replies': X API v2 treats a self-reply (this account threading its own follow-up
+      // update onto its own prior tweet — its normal way of posting "fire contained" updates) as
+      // a reply like any other, so excluding replies silently drops those from the timeline
+      // entirely — they're never even fetched, so no amount of downstream logging can see them.
+      exclude: 'retweets',
       start_time: startTime.toISOString(),
       end_time: endTime.toISOString(),
     });

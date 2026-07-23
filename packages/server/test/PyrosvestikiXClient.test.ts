@@ -53,6 +53,21 @@ describe('PyrosvestikiXClient', () => {
     expect(await client.fetchRecentPosts('999', 10)).toEqual([]);
   });
 
+  it('excludes retweets but NOT replies — this account threads its own follow-up updates as self-replies', async () => {
+    const fetchImpl = fakeFetch();
+    const client = new PyrosvestikiXClient('tok', fetchImpl);
+
+    await client.fetchRecentPosts(null, 10);
+    await client.fetchPostsInWindow(new Date('2026-07-22T00:00:00Z'), new Date('2026-07-22T12:00:00Z'));
+
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls as [string, RequestInit?][];
+    for (const call of calls) {
+      const url = String(call[0]);
+      expect(url).toContain('exclude=retweets');
+      expect(url).not.toContain('replies');
+    }
+  });
+
   it('fetches posts in a time window via start_time/end_time, not since_id', async () => {
     const fetchImpl = fakeFetch();
     const client = new PyrosvestikiXClient('tok', fetchImpl);
