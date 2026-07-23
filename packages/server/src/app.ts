@@ -29,9 +29,11 @@ import { UpdateBus } from './jobs/updateBus.js';
 const DEFAULT_PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '../public');
 
 /** Builds a Fastify instance without starting the listener — used by both index.ts and tests.
- * `auth` is null for open access (local dev default); when set, /api/fires, /api/status, and
- * /api/events require a valid session cookie. /api/health, /api/login, /api/logout, /api/me, and
- * the static frontend itself (so the SPA can render a login form) stay reachable either way. */
+ * `auth` is null for open access (local dev default). When set: /api/fires, /api/status, and
+ * /api/events stay public (viewing the map needs no login); /api/rescan, the incident-edit
+ * routes, and /api/push/subscribe|unsubscribe require a valid session cookie. /api/health,
+ * /api/login, /api/logout, /api/me, /api/push/vapid-public-key, and the static frontend itself
+ * stay reachable either way. */
 export async function buildApp(
   config: Pick<Config, 'logLevel'>,
   repository: FireRepository,
@@ -75,21 +77,24 @@ export async function buildApp(
     await app.register(authRoutes(auth));
   }
 
-  await app.register(async (protectedApp) => {
+  await app.register(async (publicApp) => {
+    await publicApp.register(firesRoutes(repository, now, incidentRepository));
+    await publicApp.register(statusRoutes(repository, now));
+    await publicApp.register(eventsRoutes(updateBus));
+  });
+
+  await app.register(async (adminApp) => {
     if (auth) {
-      protectedApp.addHook('onRequest', requireAuth(auth.sessionSecret));
+      adminApp.addHook('onRequest', requireAuth(auth.sessionSecret));
     }
-    await protectedApp.register(firesRoutes(repository, now, incidentRepository));
-    await protectedApp.register(statusRoutes(repository, now));
-    await protectedApp.register(eventsRoutes(updateBus));
     if (pushSubscriptionRepository) {
-      await protectedApp.register(pushRoutes(pushSubscriptionRepository));
+      await adminApp.register(pushRoutes(pushSubscriptionRepository));
     }
     if (getScheduler) {
-      await protectedApp.register(rescanRoutes(getScheduler));
+      await adminApp.register(rescanRoutes(getScheduler));
     }
     if (incidentRepository) {
-      await protectedApp.register(incidentEditRoutes(incidentRepository, locationSearchSource, updateBus));
+      await adminApp.register(incidentEditRoutes(incidentRepository, locationSearchSource, updateBus));
     }
   });
 
