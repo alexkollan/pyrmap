@@ -14,6 +14,8 @@ import { eventsRoutes } from './routes/events.js';
 import { authRoutes, requireAuth, type AuthConfig } from './routes/auth.js';
 import { pushPublicRoutes, pushRoutes } from './routes/push.js';
 import { rescanRoutes } from './routes/rescan.js';
+import { incidentEditRoutes } from './routes/incidents.js';
+import type { LocationSearchSource } from './ports/LocationSearchSource.js';
 import type { Scheduler } from './jobs/scheduler.js';
 import { UpdateBus } from './jobs/updateBus.js';
 
@@ -35,6 +37,7 @@ export async function buildApp(
   pushSubscriptionRepository?: PushSubscriptionRepository,
   vapidPublicKey?: string | null,
   getScheduler?: () => Scheduler | null,
+  locationSearchSource?: LocationSearchSource,
 ): Promise<FastifyInstance> {
   const app = Fastify({ logger: { level: config.logLevel } });
 
@@ -56,6 +59,9 @@ export async function buildApp(
     }
     if (getScheduler) {
       await protectedApp.register(rescanRoutes(getScheduler));
+    }
+    if (incidentRepository) {
+      await protectedApp.register(incidentEditRoutes(incidentRepository, locationSearchSource, updateBus));
     }
   });
 

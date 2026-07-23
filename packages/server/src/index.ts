@@ -79,6 +79,7 @@ async function main(): Promise<void> {
     pushSubscriptionRepository,
     vapid?.publicKey ?? null,
     () => scheduler,
+    geocodingSource,
   );
 
   if (auth) {
