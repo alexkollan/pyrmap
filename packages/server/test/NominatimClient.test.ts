@@ -178,3 +178,51 @@ describe('NominatimClient.search', () => {
     expect(sleep.mock.calls[0]![0]).toBeGreaterThan(1000);
   });
 });
+
+describe('NominatimClient.findAreaPolygon', () => {
+  it('returns a Polygon from a trusted-type result that has real boundary geometry', async () => {
+    const results = [
+      {
+        lat: '40.64',
+        lon: '22.94',
+        addresstype: 'county',
+        display_name: 'Περιφερειακή Ενότητα Θεσσαλονίκης',
+        geojson: { type: 'Polygon', coordinates: [[[22.9, 40.6], [23.0, 40.6], [23.0, 40.7], [22.9, 40.6]]] },
+      },
+    ];
+    const client = new NominatimClient(fakeFetch(results));
+    const polygon = await client.findAreaPolygon('Περιφερειακή Ενότητα Θεσσαλονίκης');
+    expect(polygon).toEqual({ type: 'Polygon', coordinates: [[[22.9, 40.6], [23.0, 40.6], [23.0, 40.7], [22.9, 40.6]]] });
+  });
+
+  it('returns null when the trusted-type result has no geojson (a point node, not a way/relation)', async () => {
+    const results = [{ lat: '40.64', lon: '22.94', addresstype: 'city', geojson: { type: 'Point', coordinates: [22.94, 40.64] } }];
+    const client = new NominatimClient(fakeFetch(results));
+    expect(await client.findAreaPolygon('somewhere')).toBeNull();
+  });
+
+  it('skips an untrusted addresstype (e.g. a road) even if it has a geometry', async () => {
+    const results = [
+      { lat: '40.64', lon: '22.94', addresstype: 'road', geojson: { type: 'LineString', coordinates: [[22.9, 40.6], [23.0, 40.6]] } },
+    ];
+    const client = new NominatimClient(fakeFetch(results));
+    expect(await client.findAreaPolygon('somewhere')).toBeNull();
+  });
+
+  it('returns null when Nominatim finds nothing or the request fails', async () => {
+    expect(await new NominatimClient(fakeFetch([])).findAreaPolygon('x')).toBeNull();
+    expect(await new NominatimClient(fakeFetch({}, 503)).findAreaPolygon('x')).toBeNull();
+  });
+
+  it('requests polygon_geojson=1 without changing what geocode() itself requests', async () => {
+    const fetchImpl = fakeFetch([]);
+    const client = new NominatimClient(fetchImpl);
+
+    await client.geocode('x');
+    await client.findAreaPolygon('y');
+
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls as [string, RequestInit?][];
+    expect(new URL(calls[0]![0] as string).searchParams.get('polygon_geojson')).toBeNull();
+    expect(new URL(calls[1]![0] as string).searchParams.get('polygon_geojson')).toBe('1');
+  });
+});

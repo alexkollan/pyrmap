@@ -1,7 +1,8 @@
-import type { IncidentPrecision, LocationSearchResult } from '@pyrmap/shared';
+import type { AlertAreaPolygon, IncidentPrecision, LocationSearchResult } from '@pyrmap/shared';
 import type { GeocodedLocation } from '../../domain/incidentGeocoding.js';
 import type { GeocodingSource } from '../../ports/GeocodingSource.js';
 import type { LocationSearchSource } from '../../ports/LocationSearchSource.js';
+import type { AreaPolygonSource } from '../../ports/AreaPolygonSource.js';
 
 const API_URL = 'https://nominatim.openstreetmap.org/search';
 // Nominatim's usage policy requires a descriptive User-Agent identifying the app, not a generic
@@ -32,6 +33,7 @@ interface NominatimResult {
   lon: string;
   addresstype?: string;
   display_name?: string;
+  geojson?: { type: string; coordinates: unknown };
 }
 
 /**
@@ -43,7 +45,7 @@ interface NominatimResult {
  * Only the first result whose addresstype is a real place (SETTLEMENT_ADDRESS_TYPES or
  * REGION_ADDRESS_TYPES) is used — see the comment on those sets for why this can't be skipped.
  */
-export class NominatimClient implements GeocodingSource, LocationSearchSource {
+export class NominatimClient implements GeocodingSource, LocationSearchSource, AreaPolygonSource {
   private lastCallAt = 0;
 
   constructor(
@@ -52,7 +54,7 @@ export class NominatimClient implements GeocodingSource, LocationSearchSource {
     private readonly sleep: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   ) {}
 
-  private async fetchResults(query: string): Promise<NominatimResult[]> {
+  private async fetchResults(query: string, extraParams: Record<string, string> = {}): Promise<NominatimResult[]> {
     const waitMs = this.lastCallAt + MIN_INTERVAL_MS - this.now();
     if (waitMs > 0) await this.sleep(waitMs);
     this.lastCallAt = this.now();
@@ -62,6 +64,7 @@ export class NominatimClient implements GeocodingSource, LocationSearchSource {
       format: 'jsonv2',
       countrycodes: 'gr',
       limit: String(RESULT_LIMIT),
+      ...extraParams,
     });
 
     const controller = new AbortController();
@@ -113,5 +116,25 @@ export class NominatimClient implements GeocodingSource, LocationSearchSource {
       found.push({ displayName: result.display_name ?? '', latitude, longitude });
     }
     return found;
+  }
+
+  /** Requests Nominatim's polygon_geojson output (simplified — a highlighted area doesn't need
+   * survey-grade precision) alongside the normal search, and returns the first trusted-type
+   * result's boundary geometry, if it has one. Shares this client's rate limiter with geocode()
+   * and search() — same instance, same ~1 req/sec budget. */
+  async findAreaPolygon(query: string): Promise<AlertAreaPolygon | null> {
+    const results = await this.fetchResults(query, { polygon_geojson: '1', polygon_threshold: '0.005' });
+
+    for (const result of results) {
+      const addressType = result.addresstype ?? '';
+      if (!SETTLEMENT_ADDRESS_TYPES.has(addressType) && !REGION_ADDRESS_TYPES.has(addressType)) continue;
+
+      const geojson = result.geojson;
+      if (!geojson) continue;
+      if (geojson.type === 'Polygon') return { type: 'Polygon', coordinates: geojson.coordinates as number[][][] };
+      if (geojson.type === 'MultiPolygon') return { type: 'MultiPolygon', coordinates: geojson.coordinates as number[][][][] };
+    }
+
+    return null;
   }
 }
