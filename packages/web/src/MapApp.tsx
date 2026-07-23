@@ -18,6 +18,7 @@ import { triggerRescan } from './api/client.js';
 import { RESCAN_COOLDOWN_MS, loadRescanCooldownUntil, storeRescanCooldownUntil } from './lib/rescan.js';
 import { loadStoredHours, storeHours } from './lib/uiPrefs.js';
 import { trackEvent } from './lib/analytics.js';
+import { trackNewIncidents } from './lib/incidentTracking.js';
 
 export interface MapAppProps {
   isAdmin: boolean;
@@ -43,6 +44,10 @@ export function MapApp({ isAdmin, onRequestLogin, onLogout }: MapAppProps): JSX.
   useEffect(() => {
     isPushEnabled().then(setPushEnabled);
   }, []);
+
+  useEffect(() => {
+    trackNewIncidents(data?.polar ?? [], data?.geo ?? [], data?.incidents ?? []);
+  }, [data]);
 
   async function handleRescan(hours: 6 | 12 | 24): Promise<void> {
     trackEvent('rescan_trigger', { hours });
