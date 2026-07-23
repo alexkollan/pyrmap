@@ -2,7 +2,7 @@ import regionalUnitsData from './data/greeceRegionalUnits.json' with { type: 'js
 import settlementsData from './data/greeceSettlements.json' with { type: 'json' };
 import type { IncidentPrecision } from '@pyrmap/shared';
 
-interface RegionalUnit {
+export interface RegionalUnit {
   nominative: string | null;
   genitives: string[];
   lat: number;
@@ -38,6 +38,15 @@ const regionByName = new Map<string, RegionalUnit>();
 for (const unit of regionalUnits) {
   for (const genitive of unit.genitives) regionByName.set(foldAccents(genitive), unit);
   if (unit.nominative) regionByName.set(foldAccents(unit.nominative), unit);
+}
+
+/**
+ * Looks up a regional unit by its genitive or nominative name (accent-insensitive), independent
+ * of the full settlement-geocoding pipeline — used when a caller needs to know WHICH unit matched
+ * (e.g. to key a pre-bundled boundary polygon by its nominative name), not just its coordinates.
+ */
+export function findRegionalUnit(name: string): RegionalUnit | null {
+  return regionByName.get(foldAccents(name)) ?? null;
 }
 
 const settlementsByName = new Map<string, Settlement[]>();

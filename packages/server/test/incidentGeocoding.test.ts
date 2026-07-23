@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { geocodeGreekLocation } from '../src/domain/incidentGeocoding.js';
+import { findRegionalUnit, geocodeGreekLocation } from '../src/domain/incidentGeocoding.js';
 
 describe('geocodeGreekLocation', () => {
   it('resolves an unambiguous settlement + region pair to settlement precision', () => {
@@ -149,5 +149,17 @@ describe('geocodeGreekLocation', () => {
     // regional_unit precision (Ηράκλειο), not settlement.
     const result = geocodeGreekLocation('Βορίζια Ηρακλείου', 'Κρήτης');
     expect(result).toEqual({ latitude: 35.3297, longitude: 25.1299, precision: 'regional_unit' });
+  });
+});
+
+describe('findRegionalUnit', () => {
+  it('resolves a known regional unit by its genitive form', () => {
+    const unit = findRegionalUnit('Θεσσαλονίκης');
+    expect(unit).toMatchObject({ nominative: 'Θεσσαλονίκη' });
+  });
+
+  it('returns null for a name that matches no regional unit', () => {
+    expect(findRegionalUnit('Κυκλάδων')).not.toBeNull(); // Κυκλάδες IS in the 54-unit gazetteer, even though it has no boundary polygon (a separate, later concern)
+    expect(findRegionalUnit('Ανύπαρκτης')).toBeNull();
   });
 });
