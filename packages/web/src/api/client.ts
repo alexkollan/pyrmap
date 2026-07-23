@@ -1,4 +1,4 @@
-import type { FiresResponse } from '@pyrmap/shared';
+import type { FiresResponse, IncidentReport, LocationSearchResult } from '@pyrmap/shared';
 
 export async function fetchFires(hours: number): Promise<FiresResponse> {
   const response = await fetch(`/api/fires?hours=${hours}`);
@@ -61,4 +61,39 @@ export async function triggerRescan(hours: 6 | 12 | 24): Promise<RescanResponse>
     throw new Error(`POST /api/rescan failed: HTTP ${response.status}`);
   }
   return (await response.json()) as RescanResponse;
+}
+
+export async function updateIncidentLocation(id: number, latitude: number, longitude: number): Promise<IncidentReport> {
+  const response = await fetch(`/api/incidents/${id}/location`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ latitude, longitude }),
+  });
+  if (!response.ok) {
+    throw new Error(`PATCH /api/incidents/${id}/location failed: HTTP ${response.status}`);
+  }
+  return (await response.json()) as IncidentReport;
+}
+
+export async function hideIncident(id: number): Promise<void> {
+  const response = await fetch(`/api/incidents/${id}/hide`, { method: 'POST' });
+  if (!response.ok) {
+    throw new Error(`POST /api/incidents/${id}/hide failed: HTTP ${response.status}`);
+  }
+}
+
+export async function deleteIncident(id: number): Promise<void> {
+  const response = await fetch(`/api/incidents/${id}`, { method: 'DELETE' });
+  if (!response.ok) {
+    throw new Error(`DELETE /api/incidents/${id} failed: HTTP ${response.status}`);
+  }
+}
+
+export async function searchLocations(query: string): Promise<LocationSearchResult[]> {
+  const response = await fetch(`/api/geocode/search?q=${encodeURIComponent(query)}`);
+  if (!response.ok) {
+    throw new Error(`GET /api/geocode/search failed: HTTP ${response.status}`);
+  }
+  const body = (await response.json()) as { results: LocationSearchResult[] };
+  return body.results;
 }
