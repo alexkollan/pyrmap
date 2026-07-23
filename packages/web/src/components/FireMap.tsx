@@ -1,10 +1,12 @@
-import { useEffect, useMemo } from 'react';
+import { Fragment, useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, WMSTileLayer, useMap } from 'react-leaflet';
-import type { Detection, GeoDetection, IncidentReport } from '@pyrmap/shared';
+import type { CivilProtectionAlert, Detection, GeoDetection, IncidentReport } from '@pyrmap/shared';
 import { GeoMarker, PolarMarker } from './FireMarker.js';
 import { FireClusterShape } from './FireClusterShape.js';
 import { WindLayer } from './WindLayer.js';
 import { IncidentMarker } from './IncidentMarker.js';
+import { Alert112Marker } from './Alert112Marker.js';
+import { Alert112AreaLayer } from './Alert112AreaLayer.js';
 import type { Theme } from '../lib/theme.js';
 import type { ViewMode } from '../lib/viewMode.js';
 import type { LayerPrefs } from '../lib/layerPrefs.js';
@@ -59,6 +61,7 @@ export interface FireMapProps {
   polar: Detection[];
   geo: GeoDetection[];
   incidents: IncidentReport[];
+  alerts: CivilProtectionAlert[];
   theme: Theme;
   viewMode: ViewMode;
   prefs: LayerPrefs;
@@ -66,7 +69,7 @@ export interface FireMapProps {
   editMode: boolean;
 }
 
-export function FireMap({ polar, geo, incidents, theme, viewMode, prefs, focusTarget, editMode }: FireMapProps): JSX.Element {
+export function FireMap({ polar, geo, incidents, alerts, theme, viewMode, prefs, focusTarget, editMode }: FireMapProps): JSX.Element {
   const tileLayer = TILE_LAYERS[theme];
 
   const visiblePolar = useMemo(
@@ -127,6 +130,14 @@ export function FireMap({ polar, geo, incidents, theme, viewMode, prefs, focusTa
 
       {prefs.reportedIncidents &&
         incidents.map((incident) => <IncidentMarker key={incident.id} incident={incident} editMode={editMode} />)}
+
+      {prefs.alert112 &&
+        alerts.map((alert) => (
+          <Fragment key={alert.id}>
+            {alert.areaPolygon && <Alert112AreaLayer alert={alert} />}
+            <Alert112Marker alert={alert} editMode={editMode} />
+          </Fragment>
+        ))}
     </MapContainer>
   );
 }

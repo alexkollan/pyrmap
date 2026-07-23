@@ -100,7 +100,7 @@ export function MapApp({ isAdmin, onRequestLogin, onLogout }: MapAppProps): JSX.
 
   function changeLayerPrefs(next: LayerPrefs): void {
     const clamped = { ...next, clusterKm: clampClusterKm(next.clusterKm) };
-    for (const key of ['effisHotspots', 'effisBurntAreas', 'wind', 'showUnconfirmed', 'reportedIncidents'] as const) {
+    for (const key of ['effisHotspots', 'effisBurntAreas', 'wind', 'showUnconfirmed', 'reportedIncidents', 'alert112'] as const) {
       if (layerPrefs[key] !== clamped[key]) trackEvent('layer_toggle', { layer: key, enabled: clamped[key] });
     }
     setLayerPrefs(clamped);
@@ -156,6 +156,7 @@ export function MapApp({ isAdmin, onRequestLogin, onLogout }: MapAppProps): JSX.
         polar={data?.polar ?? []}
         geo={data?.geo ?? []}
         incidents={data?.incidents ?? []}
+        alerts={data?.alerts ?? []}
         theme={theme}
         viewMode={viewMode}
         prefs={layerPrefs}

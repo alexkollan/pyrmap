@@ -43,6 +43,13 @@ describe('loadStoredLayerPrefs', () => {
     expect(loadStoredLayerPrefs().reportedIncidents).toBe(false);
   });
 
+  it('defaults alert112 to true, and respects a stored false', () => {
+    stubStorage(null);
+    expect(loadStoredLayerPrefs().alert112).toBe(true);
+    stubStorage(JSON.stringify({ alert112: false }));
+    expect(loadStoredLayerPrefs().alert112).toBe(false);
+  });
+
   it('returns defaults when storage holds junk', () => {
     stubStorage('not json{');
     expect(loadStoredLayerPrefs()).toEqual(DEFAULT_LAYER_PREFS);

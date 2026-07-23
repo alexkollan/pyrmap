@@ -1,4 +1,4 @@
-import type { FiresResponse, IncidentReport, LocationSearchResult } from '@pyrmap/shared';
+import type { CivilProtectionAlert, FiresResponse, IncidentReport, LocationSearchResult } from '@pyrmap/shared';
 
 export async function fetchFires(hours: number): Promise<FiresResponse> {
   const response = await fetch(`/api/fires?hours=${hours}`);
@@ -40,15 +40,18 @@ export async function logout(): Promise<void> {
   await fetch('/api/logout', { method: 'POST' });
 }
 
+interface RescanSourceResult {
+  postsChecked: number;
+  rowsInserted: number;
+  postsSkippedAlreadyResolved: number;
+  postsFailed: number;
+  error: string | null;
+}
+
 export interface RescanResponse {
   satellite: { sourcesChanged: number };
-  incidents: {
-    postsChecked: number;
-    rowsInserted: number;
-    postsSkippedAlreadyResolved: number;
-    postsFailed: number;
-    error: string | null;
-  } | null;
+  incidents: RescanSourceResult | null;
+  alerts: RescanSourceResult | null;
 }
 
 export async function triggerRescan(hours: 6 | 12 | 24): Promise<RescanResponse> {
@@ -96,4 +99,30 @@ export async function searchLocations(query: string): Promise<LocationSearchResu
   }
   const body = (await response.json()) as { results: LocationSearchResult[] };
   return body.results;
+}
+
+export async function updateAlertLocation(id: number, latitude: number, longitude: number): Promise<CivilProtectionAlert> {
+  const response = await fetch(`/api/alerts/${id}/location`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ latitude, longitude }),
+  });
+  if (!response.ok) {
+    throw new Error(`PATCH /api/alerts/${id}/location failed: HTTP ${response.status}`);
+  }
+  return (await response.json()) as CivilProtectionAlert;
+}
+
+export async function hideAlert(id: number): Promise<void> {
+  const response = await fetch(`/api/alerts/${id}/hide`, { method: 'POST' });
+  if (!response.ok) {
+    throw new Error(`POST /api/alerts/${id}/hide failed: HTTP ${response.status}`);
+  }
+}
+
+export async function deleteAlert(id: number): Promise<void> {
+  const response = await fetch(`/api/alerts/${id}`, { method: 'DELETE' });
+  if (!response.ok) {
+    throw new Error(`DELETE /api/alerts/${id} failed: HTTP ${response.status}`);
+  }
 }

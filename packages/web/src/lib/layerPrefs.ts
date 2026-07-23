@@ -14,6 +14,8 @@ export interface LayerPrefs {
   showUnconfirmed: boolean;
   /** Show reported incidents (Fire Service X account, geocoded from text — not satellite-confirmed). */
   reportedIncidents: boolean;
+  /** Show 112 civil-protection alerts (@112Greece, official — any hazard, not fire-specific). */
+  alert112: boolean;
   /** Area-view clustering distance in km, user-tunable. */
   clusterKm: number;
 }
@@ -25,6 +27,7 @@ export const DEFAULT_LAYER_PREFS: LayerPrefs = {
   wind: false,
   showUnconfirmed: true,
   reportedIncidents: true,
+  alert112: true,
   clusterKm: FIRE_CLUSTER_DISTANCE_KM,
 };
 
@@ -44,6 +47,7 @@ export function loadStoredLayerPrefs(): LayerPrefs {
       wind: parsed.wind === true,
       showUnconfirmed: parsed.showUnconfirmed !== false, // default true — hiding early warnings must be opt-in
       reportedIncidents: parsed.reportedIncidents !== false, // default true, same reasoning
+      alert112: parsed.alert112 !== false, // default true, same reasoning
       clusterKm: clampClusterKm(typeof parsed.clusterKm === 'number' ? parsed.clusterKm : DEFAULT_LAYER_PREFS.clusterKm),
     };
   } catch {

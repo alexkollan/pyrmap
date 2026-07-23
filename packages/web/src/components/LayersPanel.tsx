@@ -84,6 +84,10 @@ export function LayersPanel({ activeSources, prefs, onChange, viewMode }: Layers
               />
               Reported fires (Fire Service X, unverified)
             </label>
+            <label className="layers-row">
+              <input type="checkbox" checked={prefs.alert112} onChange={() => onChange({ ...prefs, alert112: !prefs.alert112 })} />
+              112 Alerts (official, any hazard)
+            </label>
           </div>
 
           <div className="layers-group">
