@@ -1,25 +1,28 @@
 import path from 'node:path';
-import { FIRMS_SOURCES, MTG_FIR_SOURCE_ID, MSG_FRP_PIXEL_SOURCE_ID, PYROSVESTIKI_SOURCE_ID } from '@pyrmap/shared';
+import { ALERT_112_SOURCE_ID, FIRMS_SOURCES, MTG_FIR_SOURCE_ID, MSG_FRP_PIXEL_SOURCE_ID, PYROSVESTIKI_SOURCE_ID } from '@pyrmap/shared';
 import { loadConfig } from './config.js';
 import { buildApp } from './app.js';
 import { SqliteFireRepository } from './adapters/sqlite/SqliteFireRepository.js';
 import { SqliteIncidentReportRepository } from './adapters/sqlite/SqliteIncidentReportRepository.js';
+import { SqliteCivilProtectionAlertRepository } from './adapters/sqlite/SqliteCivilProtectionAlertRepository.js';
 import { SqlitePushSubscriptionRepository } from './adapters/sqlite/SqlitePushSubscriptionRepository.js';
 import { FirmsClient } from './adapters/firms/FirmsClient.js';
 import { MockFireDataSource } from './adapters/firms/MockFireDataSource.js';
 import { EumetsatFciClient } from './adapters/eumetsat/EumetsatFciClient.js';
 import { LsaSafFrpPixelClient } from './adapters/lsasaf/LsaSafFrpPixelClient.js';
 import { PyrosvestikiXClient } from './adapters/pyrosvestiki/PyrosvestikiXClient.js';
+import { Alert112XClient } from './adapters/alert112/Alert112XClient.js';
 import { NominatimClient } from './adapters/nominatim/NominatimClient.js';
 import { resolveSources } from './domain/sourceResolution.js';
 import { startScheduler } from './jobs/scheduler.js';
 import type { Scheduler } from './jobs/scheduler.js';
 import { UpdateBus } from './jobs/updateBus.js';
-import { initializePushVapid, notifyNewDetections, notifyNewIncidents } from './services/pushNotificationService.js';
+import { initializePushVapid, notifyNewAlerts, notifyNewDetections, notifyNewIncidents } from './services/pushNotificationService.js';
 import type { AlertSourceConfig } from './services/alertIngestService.js';
 import type { FireAlertSource } from './ports/FireAlertSource.js';
 import type { FireDataSource } from './ports/FireDataSource.js';
 import type { IncidentReportRepository } from './ports/IncidentReportRepository.js';
+import type { CivilProtectionAlertRepository } from './ports/CivilProtectionAlertRepository.js';
 import type { IncidentSource } from './ports/IncidentSource.js';
 import type { AuthConfig } from './routes/auth.js';
 
@@ -42,10 +45,28 @@ async function main(): Promise<void> {
     };
   }
 
+  // @112Greece's official civil-protection alerts — same X_BEARER_TOKEN gate and same
+  // NominatimClient instance as incident reports (shares its rate limiter; findAreaPolygon is a
+  // new method on the same class, see docs/superpowers/specs/2026-07-23-112-civil-protection-alerts-design.md).
+  let alertIngestion: { source: IncidentSource; repository: CivilProtectionAlertRepository; sourceId: string } | undefined;
+  let alertRepository: CivilProtectionAlertRepository | undefined;
+  if (!process.env.FIRMS_MOCK && config.xBearerToken) {
+    alertRepository = new SqliteCivilProtectionAlertRepository(config.dbPath);
+    alertIngestion = {
+      source: new Alert112XClient(config.xBearerToken),
+      repository: alertRepository,
+      sourceId: ALERT_112_SOURCE_ID,
+    };
+  }
+
   // Live geocoding for incident reports, tried before the offline gazetteer — no API key needed
   // (OpenStreetMap Nominatim), so it's on whenever incident ingestion itself is; a failed or
   // empty lookup falls back to the offline gazetteer, never drops a post because of this alone.
-  const geocodingSource = incidentIngestion ? new NominatimClient() : undefined;
+  // Reused as-is for 112 alerts too (both geocodingSource and, via the same instance,
+  // AreaPolygonSource) — one rate limiter shared across both features, not two independently
+  // hammering the same public API.
+  const geocodingSource = incidentIngestion || alertIngestion ? new NominatimClient() : undefined;
+  const polygonSource = geocodingSource;
 
   // Push notifications, off by default — requires all three VAPID_* vars (mirrors the auth
   // pattern: a half-configured .env should never silently half-work).
@@ -74,7 +95,7 @@ async function main(): Promise<void> {
     undefined,
     undefined,
     incidentRepository,
-    undefined, // alertRepository — wired once Alert112 ingestion lands below
+    alertRepository,
     updateBus,
     auth,
     pushSubscriptionRepository,
@@ -131,6 +152,12 @@ async function main(): Promise<void> {
     app.log.warn('X_BEARER_TOKEN not set — Fire Service incident-reports layer disabled');
   }
 
+  if (alertIngestion) {
+    app.log.info('112 civil-protection alerts enabled (X API)');
+  } else if (!process.env.FIRMS_MOCK) {
+    app.log.warn('X_BEARER_TOKEN not set — 112 alerts layer disabled');
+  }
+
   if (pushSubscriptionRepository) {
     app.log.info('Push notifications enabled (VAPID configured)');
   } else {
@@ -143,7 +170,9 @@ async function main(): Promise<void> {
     effectiveSources: effective,
     alertSources,
     incidentIngestion,
+    alertIngestion,
     geocodingSource,
+    polygonSource,
     logsDir,
     onLog: (message) => app.log.info(message),
     onUpdate: () => updateBus.publish(),
@@ -152,6 +181,9 @@ async function main(): Promise<void> {
       : undefined,
     onNewIncidents: pushSubscriptionRepository
       ? (reports) => void notifyNewIncidents(pushSubscriptionRepository, reports, (m) => app.log.info(m))
+      : undefined,
+    onNewAlerts: pushSubscriptionRepository
+      ? (alerts) => void notifyNewAlerts(pushSubscriptionRepository, alerts, (m) => app.log.info(m))
       : undefined,
   });
 
