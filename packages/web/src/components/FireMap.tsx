@@ -48,9 +48,10 @@ export interface FireMapProps {
   viewMode: ViewMode;
   prefs: LayerPrefs;
   focusTarget?: FocusTarget | null;
+  editMode: boolean;
 }
 
-export function FireMap({ polar, geo, incidents, theme, viewMode, prefs, focusTarget }: FireMapProps): JSX.Element {
+export function FireMap({ polar, geo, incidents, theme, viewMode, prefs, focusTarget, editMode }: FireMapProps): JSX.Element {
   const tileLayer = TILE_LAYERS[theme];
 
   const visiblePolar = useMemo(
@@ -108,7 +109,7 @@ export function FireMap({ polar, geo, incidents, theme, viewMode, prefs, focusTa
       {prefs.wind && <WindLayer clusters={clusters} />}
 
       {prefs.reportedIncidents &&
-        incidents.map((incident) => <IncidentMarker key={incident.id} incident={incident} />)}
+        incidents.map((incident) => <IncidentMarker key={incident.id} incident={incident} editMode={editMode} />)}
     </MapContainer>
   );
 }

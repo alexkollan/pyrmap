@@ -34,6 +34,7 @@ export function MapApp({ onLogout }: MapAppProps): JSX.Element {
   const [pushEnabled, setPushEnabled] = useState(false);
   const [rescanning, setRescanning] = useState(false);
   const [cooldownUntil, setCooldownUntil] = useState(loadRescanCooldownUntil);
+  const [editMode, setEditMode] = useState(false);
 
   useEffect(() => {
     isPushEnabled().then(setPushEnabled);
@@ -116,6 +117,8 @@ export function MapApp({ onLogout }: MapAppProps): JSX.Element {
         onToggleTheme={toggleTheme}
         viewMode={viewMode}
         onToggleViewMode={toggleViewMode}
+        editMode={editMode}
+        onToggleEditMode={() => setEditMode((prev) => !prev)}
         onLogout={onLogout}
         pushSupported={pushSupport.supported}
         pushNeedsInstall={pushSupport.needsInstall}
@@ -130,6 +133,7 @@ export function MapApp({ onLogout }: MapAppProps): JSX.Element {
         viewMode={viewMode}
         prefs={layerPrefs}
         focusTarget={focusTarget}
+        editMode={editMode}
       />
       <LayersPanel activeSources={activeSources} prefs={layerPrefs} onChange={changeLayerPrefs} viewMode={viewMode} />
       <Legend />

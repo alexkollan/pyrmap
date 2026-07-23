@@ -1,8 +1,12 @@
+import { useState } from 'react';
 import { Marker, Popup } from 'react-leaflet';
 import { divIcon } from 'leaflet';
+import type { Marker as LeafletMarkerInstance } from 'leaflet';
 import type { IncidentReport } from '@pyrmap/shared';
 import { formatAthensTime, formatRelativeTime } from '../lib/formatting.js';
 import { ageToColor, hoursSince, INCIDENT_MAX_AGE_HOURS } from '../lib/ageColor.js';
+import { IncidentEditControls } from './IncidentEditControls.js';
+import { updateIncidentLocation } from '../api/client.js';
 
 const PRECISION_LABEL: Record<IncidentReport['precision'], string> = {
   settlement: 'Location: settlement-level (from the report text, not a satellite fix)',
@@ -33,7 +37,7 @@ function pinSvg(color: string): string {
  * satellite markers but compressed to a shorter window per explicit user request. Regional-unit
  * precision renders at reduced opacity to signal the coarser accuracy independently of age.
  */
-export function IncidentMarker({ incident }: { incident: IncidentReport }): JSX.Element {
+export function IncidentMarker({ incident, editMode }: { incident: IncidentReport; editMode: boolean }): JSX.Element {
   const coarse = incident.precision === 'regional_unit';
   const color = ageToColor(hoursSince(incident.publishedAt), INCIDENT_MAX_AGE_HOURS);
   const icon = divIcon({
@@ -43,9 +47,28 @@ export function IncidentMarker({ incident }: { incident: IncidentReport }): JSX.
     iconAnchor: [13, 34],
     popupAnchor: [0, -30],
   });
+  const [dragError, setDragError] = useState<string | null>(null);
 
   return (
-    <Marker position={[incident.latitude, incident.longitude]} icon={icon}>
+    <Marker
+      position={[incident.latitude, incident.longitude]}
+      icon={icon}
+      draggable={editMode}
+      eventHandlers={
+        editMode
+          ? {
+              dragend: (event: { target: LeafletMarkerInstance }) => {
+                const marker = event.target;
+                const { lat, lng } = marker.getLatLng();
+                updateIncidentLocation(incident.id, lat, lng).catch(() => {
+                  setDragError('Move failed — try again.');
+                  marker.setLatLng([incident.latitude, incident.longitude]);
+                });
+              },
+            }
+          : {}
+      }
+    >
       <Popup>
         <div className="fire-popup">
           <strong>Reported fire (Fire Service, unverified by satellite)</strong>
@@ -61,6 +84,8 @@ export function IncidentMarker({ incident }: { incident: IncidentReport }): JSX.
               View original post ↗
             </a>
           </div>
+          {editMode && <IncidentEditControls incident={incident} />}
+          {dragError && <div className="incident-edit-error">{dragError}</div>}
         </div>
       </Popup>
     </Marker>

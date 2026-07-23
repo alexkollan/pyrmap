@@ -18,6 +18,8 @@ export interface StatusBarProps {
   onToggleTheme: () => void;
   viewMode: ViewMode;
   onToggleViewMode: () => void;
+  editMode: boolean;
+  onToggleEditMode: () => void;
   /** Omitted entirely (no button rendered) when the server has no auth configured. */
   onLogout?: () => void;
   pushSupported: boolean;
@@ -41,6 +43,8 @@ export function StatusBar({
   onToggleTheme,
   viewMode,
   onToggleViewMode,
+  editMode,
+  onToggleEditMode,
   onLogout,
   pushSupported,
   pushNeedsInstall,
@@ -89,6 +93,9 @@ export function StatusBar({
       </button>
       <button type="button" onClick={onToggleViewMode} aria-label="Toggle points/area view">
         {viewMode === 'points' ? 'Area view' : 'Point view'}
+      </button>
+      <button type="button" onClick={onToggleEditMode} aria-label="Toggle pin edit mode">
+        {editMode ? 'Done editing' : 'Edit pins'}
       </button>
       <span
         className={loading ? 'auto-refresh-indicator active' : 'auto-refresh-indicator'}
