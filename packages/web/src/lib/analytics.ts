@@ -45,8 +45,17 @@ function injectGtagScript(measurementId: string): void {
   document.head.appendChild(script);
 
   window.dataLayer = window.dataLayer || [];
-  window.gtag = function gtag(...args: unknown[]) {
-    window.dataLayer!.push(args);
+  // Must push the `arguments` object (Google's own official pattern), NOT a real Array built from
+  // rest params — live-verified 2026-07-23 (see docs/DECISIONS.md) via a clean A/B test: gtag.js's
+  // internal dataLayer-queue processing silently ignores entries that are genuine Arrays instead
+  // of an arguments-shaped array-like. Using rest params here meant gtag.js downloaded and ran,
+  // dataLayer accumulated entries correctly, but NO hit was ever actually sent — no console error,
+  // no CSP violation, nothing visibly wrong; only a side-by-side test caught it. `function`
+  // (not an arrow function) is required so `arguments` is available.
+  // eslint-disable-next-line prefer-rest-params
+  window.gtag = function gtag() {
+    // eslint-disable-next-line prefer-rest-params
+    window.dataLayer!.push(arguments);
   };
   window.gtag('js', new Date());
   window.gtag('config', measurementId);

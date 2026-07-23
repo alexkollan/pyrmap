@@ -65,7 +65,20 @@ export async function buildApp(
         // for parallel loading across per-host connection limits) — a bare host with no wildcard
         // silently blocks every actual tile request. Caught live via a real browser CSP-violation
         // check (docs/DECISIONS.md 2026-07-23), not assumed.
-        imgSrc: ["'self'", 'data:', 'https://*.basemaps.cartocdn.com', 'https://maps.effis.emergency.copernicus.eu'],
+        //
+        // googletagmanager.com is ALSO needed here, not just in scriptSrc: gtag.js makes its own
+        // image-pixel requests to paths like /a and /td (separate from the initial gtag/js script
+        // fetch) as part of completing its internal config/init sequence — without this, GA4 never
+        // finishes initializing and silently never sends any hit at all, no console error from our
+        // own testing ever surfaced it; only Google's own Tag Assistant console log did
+        // (docs/DECISIONS.md 2026-07-23).
+        imgSrc: [
+          "'self'",
+          'data:',
+          'https://*.basemaps.cartocdn.com',
+          'https://maps.effis.emergency.copernicus.eu',
+          'https://www.googletagmanager.com',
+        ],
         styleSrc: ["'self'", "'unsafe-inline'"],
         objectSrc: ["'none'"],
         baseUri: ["'self'"],
