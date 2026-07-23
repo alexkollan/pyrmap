@@ -1,6 +1,7 @@
 import { formatLocalTime } from '../lib/formatting.js';
 import type { Theme } from '../lib/theme.js';
 import type { ViewMode } from '../lib/viewMode.js';
+import { trackEvent } from '../lib/analytics.js';
 
 const HOURS_OPTIONS = [6, 12, 24, 48, 72] as const;
 
@@ -127,12 +128,26 @@ export function StatusBar({
         </span>
       )}
       {onLogout && (
-        <button type="button" className="logout-button" onClick={onLogout}>
+        <button
+          type="button"
+          className="logout-button"
+          onClick={() => {
+            trackEvent('logout_click');
+            onLogout();
+          }}
+        >
           Log out
         </button>
       )}
       {onRequestLogin && (
-        <button type="button" className="logout-button" onClick={onRequestLogin}>
+        <button
+          type="button"
+          className="logout-button"
+          onClick={() => {
+            trackEvent('login_prompt_opened');
+            onRequestLogin();
+          }}
+        >
           Log in
         </button>
       )}

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { login } from '../api/client.js';
+import { trackEvent } from '../lib/analytics.js';
 
 export function LoginForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }): JSX.Element {
   const [username, setUsername] = useState('');
@@ -12,6 +13,7 @@ export function LoginForm({ onSuccess, onCancel }: { onSuccess: () => void; onCa
     setSubmitting(true);
     setError(false);
     const ok = await login(username, password);
+    trackEvent('login_attempt', { success: ok });
     setSubmitting(false);
     if (ok) {
       onSuccess();

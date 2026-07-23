@@ -17,6 +17,7 @@ import {
 import { triggerRescan } from './api/client.js';
 import { RESCAN_COOLDOWN_MS, loadRescanCooldownUntil, storeRescanCooldownUntil } from './lib/rescan.js';
 import { loadStoredHours, storeHours } from './lib/uiPrefs.js';
+import { trackEvent } from './lib/analytics.js';
 
 export interface MapAppProps {
   isAdmin: boolean;
@@ -44,6 +45,7 @@ export function MapApp({ isAdmin, onRequestLogin, onLogout }: MapAppProps): JSX.
   }, []);
 
   async function handleRescan(hours: 6 | 12 | 24): Promise<void> {
+    trackEvent('rescan_trigger', { hours });
     setRescanning(true);
     try {
       await triggerRescan(hours);
@@ -59,6 +61,7 @@ export function MapApp({ isAdmin, onRequestLogin, onLogout }: MapAppProps): JSX.
   }
 
   async function togglePush(): Promise<void> {
+    trackEvent('push_notifications_toggle', { to: pushEnabled ? 'disabled' : 'enabled' });
     if (pushEnabled) {
       try {
         await disablePushNotifications();
@@ -78,18 +81,23 @@ export function MapApp({ isAdmin, onRequestLogin, onLogout }: MapAppProps): JSX.
 
   function toggleTheme(): void {
     const next: Theme = theme === 'dark' ? 'light' : 'dark';
+    trackEvent('theme_toggle', { to: next });
     setTheme(next);
     storeTheme(next);
   }
 
   function toggleViewMode(): void {
     const next: ViewMode = viewMode === 'points' ? 'areas' : 'points';
+    trackEvent('view_mode_toggle', { to: next });
     setViewMode(next);
     storeViewMode(next);
   }
 
   function changeLayerPrefs(next: LayerPrefs): void {
     const clamped = { ...next, clusterKm: clampClusterKm(next.clusterKm) };
+    for (const key of ['effisHotspots', 'effisBurntAreas', 'wind', 'showUnconfirmed', 'reportedIncidents'] as const) {
+      if (layerPrefs[key] !== clamped[key]) trackEvent('layer_toggle', { layer: key, enabled: clamped[key] });
+    }
     setLayerPrefs(clamped);
     storeLayerPrefs(clamped);
   }
@@ -106,13 +114,17 @@ export function MapApp({ isAdmin, onRequestLogin, onLogout }: MapAppProps): JSX.
       <StatusBar
         hours={hours}
         onHoursChange={(next) => {
+          trackEvent('time_window_change', { hours: next });
           setHours(next);
           storeHours(next);
         }}
         lastSuccessAt={lastSuccessAt}
         loading={loading}
         error={error}
-        onRefresh={refresh}
+        onRefresh={() => {
+          trackEvent('refresh_click');
+          refresh();
+        }}
         rescanning={rescanning}
         rescanCooldownActive={Date.now() < cooldownUntil}
         onRescan={(hours) => void handleRescan(hours)}
@@ -121,7 +133,12 @@ export function MapApp({ isAdmin, onRequestLogin, onLogout }: MapAppProps): JSX.
         viewMode={viewMode}
         onToggleViewMode={toggleViewMode}
         editMode={editMode}
-        onToggleEditMode={() => setEditMode((prev) => !prev)}
+        onToggleEditMode={() => {
+          setEditMode((prev) => {
+            trackEvent('edit_mode_toggle', { to: prev ? 'off' : 'on' });
+            return !prev;
+          });
+        }}
         isAdmin={isAdmin}
         onRequestLogin={onRequestLogin}
         onLogout={onLogout}

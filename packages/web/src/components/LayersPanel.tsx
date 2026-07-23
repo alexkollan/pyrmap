@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { LayerPrefs } from '../lib/layerPrefs.js';
 import type { ViewMode } from '../lib/viewMode.js';
 import { loadStoredPanelCollapsed, storePanelCollapsed } from '../lib/uiPrefs.js';
+import { trackEvent } from '../lib/analytics.js';
 
 /** Human-readable labels for the FIRMS source ids we poll. */
 const SOURCE_LABELS: Record<string, string> = {
@@ -30,6 +31,9 @@ export function LayersPanel({ activeSources, prefs, onChange, viewMode }: Layers
     const hidden = prefs.hiddenSources.includes(sourceId)
       ? prefs.hiddenSources.filter((s) => s !== sourceId)
       : [...prefs.hiddenSources, sourceId];
+    // includes(sourceId) means it's currently hidden — after this toggle it becomes visible, so
+    // the NEW "enabled" state is exactly that current "was hidden" flag.
+    trackEvent('layer_toggle', { layer: sourceId, enabled: prefs.hiddenSources.includes(sourceId) });
     onChange({ ...prefs, hiddenSources: hidden });
   }
 
@@ -42,6 +46,7 @@ export function LayersPanel({ activeSources, prefs, onChange, viewMode }: Layers
           setCollapsed((c) => {
             const next = !c;
             storePanelCollapsed('layers', next);
+            trackEvent('layers_panel_toggle', { collapsed: next });
             return next;
           });
         }}

@@ -10,6 +10,7 @@ import type { ViewMode } from '../lib/viewMode.js';
 import type { LayerPrefs } from '../lib/layerPrefs.js';
 import { buildFireClusters } from '../lib/fireClusters.js';
 import type { FocusTarget } from '../lib/focusTarget.js';
+import { trackEvent } from '../lib/analytics.js';
 
 const GREECE_CENTER: [number, number] = [38.5, 24.0];
 const INITIAL_ZOOM = 7;
@@ -40,7 +41,10 @@ const EFFIS_ATTRIBUTION = '&copy; <a href="https://forest-fire.emergency.coperni
 function FocusHandler({ target }: { target: FocusTarget | null }): null {
   const map = useMap();
   useEffect(() => {
-    if (target) map.setView([target.lat, target.lon], 13);
+    if (target) {
+      map.setView([target.lat, target.lon], 13);
+      trackEvent('focus_target_opened');
+    }
   }, [target, map]);
   return null;
 }

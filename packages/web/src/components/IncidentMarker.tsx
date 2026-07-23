@@ -7,6 +7,7 @@ import { formatAthensTime, formatRelativeTime } from '../lib/formatting.js';
 import { ageToColor, hoursSince, INCIDENT_MAX_AGE_HOURS } from '../lib/ageColor.js';
 import { IncidentEditControls } from './IncidentEditControls.js';
 import { updateIncidentLocation } from '../api/client.js';
+import { trackEvent } from '../lib/analytics.js';
 
 const PRECISION_LABEL: Record<IncidentReport['precision'], string> = {
   settlement: 'Location: settlement-level (from the report text, not a satellite fix)',
@@ -54,11 +55,13 @@ export function IncidentMarker({ incident, editMode }: { incident: IncidentRepor
       position={[incident.latitude, incident.longitude]}
       icon={icon}
       draggable={editMode}
-      eventHandlers={
-        editMode
+      eventHandlers={{
+        click: () => trackEvent('marker_click', { tier: 'incident' }),
+        ...(editMode
           ? {
               dragend: (event: { target: LeafletMarkerInstance }) => {
                 const marker = event.target;
+                trackEvent('incident_pin_dragged');
                 const { lat, lng } = marker.getLatLng();
                 updateIncidentLocation(incident.id, lat, lng).catch(() => {
                   setDragError('Move failed — try again.');
@@ -66,8 +69,8 @@ export function IncidentMarker({ incident, editMode }: { incident: IncidentRepor
                 });
               },
             }
-          : {}
-      }
+          : {}),
+      }}
     >
       <Popup>
         <div className="fire-popup">
@@ -80,7 +83,12 @@ export function IncidentMarker({ incident, editMode }: { incident: IncidentRepor
             <div>{PRECISION_LABEL[incident.precision]}</div>
           </div>
           <div>
-            <a href={incident.url} target="_blank" rel="noreferrer">
+            <a
+              href={incident.url}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => trackEvent('incident_original_post_click')}
+            >
               View original post ↗
             </a>
           </div>

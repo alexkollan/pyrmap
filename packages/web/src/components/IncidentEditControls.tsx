@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { IncidentReport, LocationSearchResult } from '@pyrmap/shared';
 import { deleteIncident, hideIncident, searchLocations, updateIncidentLocation } from '../api/client.js';
+import { trackEvent } from '../lib/analytics.js';
 
 /**
  * Correction controls shown inside an incident pin's popup while the map is in edit mode: manual
@@ -36,25 +37,34 @@ export function IncidentEditControls({ incident }: { incident: IncidentReport })
       setError('Latitude/longitude must be numbers.');
       return;
     }
+    trackEvent('incident_pin_manual_save');
     void run(() => updateIncidentLocation(incident.id, parsedLat, parsedLon).then(() => undefined));
   }
 
   function handleSearch(): void {
     if (!query.trim()) return;
-    void run(() => searchLocations(query).then(setResults));
+    void run(() =>
+      searchLocations(query).then((found) => {
+        trackEvent('incident_location_search', { resultCount: found.length });
+        setResults(found);
+      }),
+    );
   }
 
   function handlePickResult(result: LocationSearchResult): void {
+    trackEvent('incident_pin_search_pick');
     void run(() => updateIncidentLocation(incident.id, result.latitude, result.longitude).then(() => undefined));
   }
 
   function handleHide(): void {
     if (!confirm('Hide this pin? It will be hidden forever, even if the same post is scanned again — this cannot be undone.')) return;
+    trackEvent('incident_pin_hidden');
     void run(() => hideIncident(incident.id));
   }
 
   function handleDelete(): void {
     if (!confirm('Delete this pin forever? Unlike Hide, a future re-scan may re-add it if it fetches this same post again.')) return;
+    trackEvent('incident_pin_deleted');
     void run(() => deleteIncident(incident.id));
   }
 

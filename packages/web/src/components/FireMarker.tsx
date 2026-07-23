@@ -2,6 +2,7 @@ import { CircleMarker } from 'react-leaflet';
 import type { Detection, GeoDetection } from '@pyrmap/shared';
 import { FirePopup } from './FirePopup.js';
 import { ageToColor, hoursSince, SATELLITE_MAX_AGE_HOURS } from '../lib/ageColor.js';
+import { trackEvent } from '../lib/analytics.js';
 
 // Confirmed detections keep a red ring regardless of age — that's the trust signal (two
 // independent satellites agree), kept separate from the age gradient below so both stay legible.
@@ -23,6 +24,7 @@ export function PolarMarker({ detection }: { detection: Detection }): JSX.Elemen
       center={[detection.latitude, detection.longitude]}
       radius={8}
       pathOptions={{ color, weight: 1, fillColor: color, fillOpacity: 0.9 }}
+      eventHandlers={{ click: () => trackEvent('marker_click', { tier: 'polar' }) }}
     >
       <FirePopup detection={detection} kind="polar" />
     </CircleMarker>
@@ -41,6 +43,7 @@ export function GeoMarker({ detection }: { detection: GeoDetection }): JSX.Eleme
         center={[detection.latitude, detection.longitude]}
         radius={10}
         pathOptions={{ color: CONFIRMED_BORDER, weight: 2, fillColor: color, fillOpacity: 0.9 }}
+        eventHandlers={{ click: () => trackEvent('marker_click', { tier: 'geo' }) }}
       >
         <FirePopup detection={detection} kind="geo-confirmed" />
       </CircleMarker>
@@ -59,6 +62,7 @@ export function GeoMarker({ detection }: { detection: GeoDetection }): JSX.Eleme
         fillOpacity: 0.25,
         className: 'pulse-marker',
       }}
+      eventHandlers={{ click: () => trackEvent('marker_click', { tier: 'geo' }) }}
     >
       <FirePopup detection={detection} kind="geo-unconfirmed" />
     </CircleMarker>
