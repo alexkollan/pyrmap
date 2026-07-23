@@ -38,6 +38,13 @@ export interface IncidentReport {
   precision: IncidentPrecision;
 }
 
+/** One candidate result from a free-text place-name search (Nominatim), for a human to pick from — unlike IncidentReport's geocoding, this is not type-filtered. */
+export interface LocationSearchResult {
+  displayName: string;
+  latitude: number;
+  longitude: number;
+}
+
 export interface FiresResponse {
   generatedAt: string; // ISO 8601 UTC
   polar: Detection[];
