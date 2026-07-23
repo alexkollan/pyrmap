@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SqliteFireRepository } from '../src/adapters/sqlite/SqliteFireRepository.js';
 import { SqliteIncidentReportRepository } from '../src/adapters/sqlite/SqliteIncidentReportRepository.js';
+import { SqliteCivilProtectionAlertRepository } from '../src/adapters/sqlite/SqliteCivilProtectionAlertRepository.js';
 import { startScheduler } from '../src/jobs/scheduler.js';
 import { FakeFireDataSource } from './fakes/FakeFireDataSource.js';
 import type { IncidentSource, RawPost } from '../src/ports/IncidentSource.js';
@@ -186,5 +187,79 @@ describe('startScheduler', () => {
 
     const result = await scheduler.rescan(6);
     expect(result.incidents).toBeNull();
+  });
+
+  it('pollAlerts does nothing when no alertIngestion is configured', async () => {
+    const dataSource = new FakeFireDataSource({});
+    const scheduler = startScheduler({
+      dataSource,
+      repository: repo,
+      effectiveSources: {},
+      logsDir: path.join(tmpDir, 'logs'),
+      now: () => new Date('2026-07-15T12:00:00Z'),
+    });
+    scheduler.stop();
+
+    await expect(scheduler.pollAlerts()).resolves.toBeUndefined();
+  });
+
+  it('pollAlerts calls onUpdate and onNewAlerts when a new alert is inserted', async () => {
+    const alertRepo = new SqliteCivilProtectionAlertRepository(path.join(tmpDir, 'alerts.db'));
+    const post: RawPost = {
+      externalId: '1',
+      text: '⚠️Ενεργοποίηση 1⃣1⃣2⃣\n\n🆘 Πυρκαγιά στην περιοχή #Δερβένι της Περιφερειακής Ενότητας #Θεσσαλονίκης\n\nℹ️',
+      publishedAt: '2026-07-15T07:00:00Z',
+      url: 'https://x.com/112Greece/status/1',
+    };
+    const alertSource: IncidentSource = { fetchRecentPosts: async () => [post], fetchPostsInWindow: async () => [] };
+    const onUpdate = vi.fn();
+    const onNewAlerts = vi.fn();
+
+    const dataSource = new FakeFireDataSource({});
+    const scheduler = startScheduler({
+      dataSource,
+      repository: repo,
+      effectiveSources: {},
+      alertIngestion: { source: alertSource, repository: alertRepo, sourceId: 'ALERT_112_X' },
+      logsDir: path.join(tmpDir, 'logs'),
+      now: () => new Date('2026-07-15T12:00:00Z'),
+      onUpdate,
+      onNewAlerts,
+    });
+    scheduler.stop();
+
+    await scheduler.pollAlerts();
+    alertRepo.close();
+
+    expect(onUpdate).toHaveBeenCalled();
+    expect(onNewAlerts).toHaveBeenCalled();
+  });
+
+  it('rescan() also rescans alerts over the requested window', async () => {
+    const dataSource = new FakeFireDataSource({});
+    const alertRepo = new SqliteCivilProtectionAlertRepository(path.join(tmpDir, 'alerts.db'));
+    const post: RawPost = {
+      externalId: '1',
+      text: '⚠️Ενεργοποίηση 1⃣1⃣2⃣\n\n🆘 Πυρκαγιά στην περιοχή #Δερβένι της Περιφερειακής Ενότητας #Θεσσαλονίκης\n\nℹ️',
+      publishedAt: '2026-07-15T11:00:00Z',
+      url: 'https://x.com/112Greece/status/1',
+    };
+    const alertSource: IncidentSource = { fetchRecentPosts: async () => [], fetchPostsInWindow: async () => [post] };
+
+    const scheduler = startScheduler({
+      dataSource,
+      repository: repo,
+      effectiveSources: {},
+      alertIngestion: { source: alertSource, repository: alertRepo, sourceId: 'ALERT_112_X' },
+      logsDir: path.join(tmpDir, 'logs'),
+      now: () => new Date('2026-07-15T12:00:00Z'),
+    });
+    scheduler.stop();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const result = await scheduler.rescan(6);
+    alertRepo.close();
+
+    expect(result.alerts).toEqual({ postsChecked: 1, rowsInserted: 1, postsSkippedAlreadyResolved: 0, postsFailed: 0, error: null });
   });
 });

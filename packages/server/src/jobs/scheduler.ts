@@ -7,12 +7,16 @@ import { runConfirmationPass } from '../services/confirmationService.js';
 import { runDecayPass } from '../services/decayService.js';
 import { runRetention } from '../services/retentionService.js';
 import { rescanIncidentReports, type RescanResult } from '../services/incidentRescanService.js';
+import { ingestAlerts } from '../services/alert112IngestService.js';
+import { rescanAlerts, type AlertRescanResult } from '../services/alert112RescanService.js';
 import type { FireAlertSource } from '../ports/FireAlertSource.js';
 import type { FireDataSource } from '../ports/FireDataSource.js';
 import type { FireRepository, InsertedDetection } from '../ports/FireRepository.js';
 import type { IncidentSource } from '../ports/IncidentSource.js';
 import type { IncidentReportRepository, NewIncidentReportRow } from '../ports/IncidentReportRepository.js';
+import type { CivilProtectionAlertRepository, NewAlertRow } from '../ports/CivilProtectionAlertRepository.js';
 import type { GeocodingSource } from '../ports/GeocodingSource.js';
+import type { AreaPolygonSource } from '../ports/AreaPolygonSource.js';
 
 // FIRMS dayRange counts UTC *calendar* days (1 = today only), not trailing 24h — verified live
 // 2026-07-18: with 1, a 23:20 UTC pass vanishes right after midnight. 2 keeps a full trailing day
@@ -27,8 +31,12 @@ export interface SchedulerDeps {
   alertSources?: Array<{ source: FireAlertSource; config: AlertSourceConfig }>;
   /** Optional text-based incident source (Fire Service X account); polled every minute on its own job — each poll is a paid API call, but since_id makes an empty poll (nothing new) free. */
   incidentIngestion?: { source: IncidentSource; repository: IncidentReportRepository; sourceId: string };
+  /** Optional 112 civil-protection alert source (@112Greece X account); polled every minute on its own job, same cost model as incidentIngestion. */
+  alertIngestion?: { source: IncidentSource; repository: CivilProtectionAlertRepository; sourceId: string };
   /** Optional live geocoder (e.g. Nominatim) tried before the offline gazetteer for incident reports. */
   geocodingSource?: GeocodingSource;
+  /** Optional best-effort area-polygon lookup for 112 alerts (e.g. Nominatim). */
+  polygonSource?: AreaPolygonSource;
   /** Directory failed incident-report resolutions are logged to, one file per UTC day. */
   logsDir: string;
   now?: () => Date;
@@ -39,6 +47,8 @@ export interface SchedulerDeps {
   onNewDetections?: (detections: InsertedDetection[]) => void;
   /** Called with newly inserted incident reports, once per row — drives push notifications. */
   onNewIncidents?: (reports: NewIncidentReportRow[]) => void;
+  /** Called with newly inserted 112 alerts, once per row — drives push notifications. */
+  onNewAlerts?: (alerts: NewAlertRow[]) => void;
 }
 
 export interface Scheduler {
@@ -46,9 +56,12 @@ export interface Scheduler {
   pollGeo: () => Promise<void>;
   pollPolar: () => Promise<void>;
   pollIncidents: () => Promise<void>;
+  pollAlerts: () => Promise<void>;
   decay: () => void;
   retention: () => void;
-  rescan: (hours: 6 | 12 | 24) => Promise<{ satellite: { sourcesChanged: number }; incidents: RescanResult | null }>;
+  rescan: (
+    hours: 6 | 12 | 24,
+  ) => Promise<{ satellite: { sourcesChanged: number }; incidents: RescanResult | null; alerts: AlertRescanResult | null }>;
 }
 
 /**
@@ -110,7 +123,26 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
     if (result.rowsInserted > 0) deps.onUpdate?.();
   }
 
-  async function rescan(hours: 6 | 12 | 24): Promise<{ satellite: { sourcesChanged: number }; incidents: RescanResult | null }> {
+  async function pollAlerts(): Promise<void> {
+    const alerts = deps.alertIngestion;
+    if (!alerts) return;
+    const result = await ingestAlerts(
+      alerts.source,
+      alerts.repository,
+      alerts.sourceId,
+      now,
+      deps.logsDir,
+      deps.onLog,
+      deps.onNewAlerts,
+      deps.geocodingSource,
+      deps.polygonSource,
+    );
+    if (result.rowsInserted > 0) deps.onUpdate?.();
+  }
+
+  async function rescan(
+    hours: 6 | 12 | 24,
+  ): Promise<{ satellite: { sourcesChanged: number }; incidents: RescanResult | null; alerts: AlertRescanResult | null }> {
     let sourcesChanged = 0;
     for (const sourceId of geoSourceIds) {
       if (await ingestOne(sourceId, 'geo')) sourcesChanged++;
@@ -137,8 +169,23 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
         )
       : null;
 
+    const alerts = deps.alertIngestion;
+    const alertResult = alerts
+      ? await rescanAlerts(
+          alerts.source,
+          alerts.repository,
+          alerts.sourceId,
+          hours,
+          now,
+          deps.logsDir,
+          deps.geocodingSource,
+          deps.polygonSource,
+          deps.onLog,
+        )
+      : null;
+
     deps.onUpdate?.();
-    return { satellite: { sourcesChanged }, incidents: incidentResult };
+    return { satellite: { sourcesChanged }, incidents: incidentResult, alerts: alertResult };
   }
 
   async function pollPolar(): Promise<void> {
@@ -177,6 +224,7 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
     cron.schedule('*/10 * * * *', () => void pollGeo()),
     cron.schedule('*/30 * * * *', () => void pollPolar()),
     cron.schedule('* * * * *', () => void pollIncidents()),
+    cron.schedule('* * * * *', () => void pollAlerts()),
     cron.schedule('*/10 * * * *', decay),
     cron.schedule('0 3 * * *', retention),
   ];
@@ -184,12 +232,14 @@ export function startScheduler(deps: SchedulerDeps): Scheduler {
   void pollGeo();
   void pollPolar();
   void pollIncidents();
+  void pollAlerts();
 
   return {
     stop: () => tasks.forEach((task) => task.stop()),
     pollGeo,
     pollPolar,
     pollIncidents,
+    pollAlerts,
     decay,
     retention,
     rescan,
