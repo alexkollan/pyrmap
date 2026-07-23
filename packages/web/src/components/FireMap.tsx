@@ -37,6 +37,12 @@ const TILE_LAYERS: Record<Theme, { url: string; attribution: string }> = {
 const EFFIS_WMS_URL = 'https://maps.effis.emergency.copernicus.eu/effis';
 const EFFIS_ATTRIBUTION = '&copy; <a href="https://forest-fire.emergency.copernicus.eu/">EFFIS</a>';
 
+// EFFIS's public WMS server struggles with very large-area (zoomed-far-out) tile requests —
+// live-verified 2026-07-23: a Greece-scale bbox returns a clean 200 PNG, but a whole-world-scale
+// bbox just hangs. One zoom level wider than INITIAL_ZOOM (Greece + neighboring region), not
+// Europe/world-scale, so the overlay never asks for a bbox that size.
+const EFFIS_MIN_ZOOM = 6;
+
 /** Pans the map to a deep-linked detection (from a push notification click) once, when it appears. */
 function FocusHandler({ target }: { target: FocusTarget | null }): null {
   const map = useMap();
@@ -91,6 +97,7 @@ export function FireMap({ polar, geo, incidents, theme, viewMode, prefs, focusTa
           params={{ layers: 'effis.nrt.ba.poly', format: 'image/png', transparent: true }}
           attribution={EFFIS_ATTRIBUTION}
           opacity={0.7}
+          minZoom={EFFIS_MIN_ZOOM}
         />
       )}
       {prefs.effisHotspots && (
@@ -99,6 +106,7 @@ export function FireMap({ polar, geo, incidents, theme, viewMode, prefs, focusTa
           params={{ layers: 'all.hs', format: 'image/png', transparent: true }}
           attribution={EFFIS_ATTRIBUTION}
           opacity={0.8}
+          minZoom={EFFIS_MIN_ZOOM}
         />
       )}
 
