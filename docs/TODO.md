@@ -46,6 +46,15 @@ including X), and fully persisted UI state (6h default window, panel collapsed s
   headless-browser system dependency could be installed in this dev environment without sudo.
   Needs a real visual check on an actual phone or devtools device toolbar at ~375-414px before
   trusting it fully.
+- **Found while fixing incident-log dedup/noise (2026-07-23, out of scope for that task, not fixed):**
+  real active-fire posts still fail `extractLocationPhrase` (logged as `no-location`, correctly —
+  this note is about the parser gap, not the logging bug) for two reasons seen in real logs today:
+  (1) neuter-plural place names take "στα" ("in the", plural), e.g. "στα Οινόφυτα Βοιωτίας" —
+  GENERIC_RE only has στο/στη/στην/στον, no στα; (2) a place name immediately followed by a digit
+  before any comma/period (e.g. "στο Δερβένι Ωραιοκάστρου Θεσσαλονίκης και επιχειρούν 78
+  πυροσβέστες...") fails PHRASE_END entirely, because PHRASE's character class excludes digits and
+  there's no punctuation before the number — very common phrasing (headcounts/vehicle counts appear
+  right after the place name in most posts), likely a frequent real miss.
 - No other open work besides the two items above; tree clean as of 2026-07-23.
 - Repo is intentionally public (see `CLAUDE.md` §2) — don't flip it private without reading why.
 - Any task adding an env var must update `config.ts` + `.env` + `.env.example` +

@@ -1,16 +1,24 @@
 /** Matches the Greek stem for "fire" (πυρκαγιά/πυρκαγιάς/πυρκαγιές/πυρκαγιών/...), case-insensitively (posts often lead with "#Πυρκαγιά"). */
 const FIRE_STEM_RE = /πυρκαγ/iu;
 
+// "#ΣανΣήμερα" ("On this day") marks the account's recurring historical/memorial post format
+// (e.g. commemorating a firefighter who died in a fire decades ago) — real example, 2026-07-23.
+// These mention the πυρκαγ* stem and can even contain a genuine "in [place]" clause (the
+// person's birthplace, say), so they don't fall out naturally the way aggregate-stat posts do;
+// left unfiltered, one geocoded straight to a real village and would have produced a false
+// incident pin for an event 26 years in the past, not a current fire.
+const RETROSPECTIVE_RE = /#?Σαν\s*Σήμερα/iu;
+
 /**
- * True if the post is plausibly about a specific fire (mentions the πυρκαγ* stem). This is
- * deliberately loose — it's a first gate, not a full classifier. The real filter is that
- * extractLocationPhrase() must also succeed: aggregate-stat posts ("37 fires in 24h") and
- * risk-forecast maps mention fire but have no "in [place]" clause, so they fall out naturally
- * without needing a second, brittle set of exclusion keywords. Verified against a real batch
- * of posts, 2026-07-20 — see docs/DECISIONS.md.
+ * True if the post is plausibly about a specific *current* fire (mentions the πυρκαγ* stem, and
+ * isn't a known non-incident post format). This is deliberately loose beyond that — it's a first
+ * gate, not a full classifier. The real filter is that extractLocationPhrase() must also succeed:
+ * aggregate-stat posts ("37 fires in 24h") and risk-forecast maps mention fire but have no "in
+ * [place]" clause, so they fall out naturally without needing a second, brittle set of exclusion
+ * keywords. Verified against a real batch of posts, 2026-07-20 — see docs/DECISIONS.md.
  */
 export function isFireIncidentPost(text: string): boolean {
-  return FIRE_STEM_RE.test(text);
+  return FIRE_STEM_RE.test(text) && !RETROSPECTIVE_RE.test(text);
 }
 
 export interface ExtractedLocation {
@@ -35,13 +43,20 @@ const PHRASE = `${ABBR_PREFIX}[${GREEK_WORD}][${GREEK_WORD}\\s]*?`;
 // Κιλελέρ Λάρισας" with nothing after "Λάρισας", not even a full stop).
 const PHRASE_END = '\\s*(?:[.,]|$)';
 
+// Requires the "στ..." preposition that follows isn't itself the tail of a longer word — without
+// this, "στο/στη/στην/στον" also match mid-word (real post, 2026-07-23: "υπέστη" ends in "στη",
+// which matched as if it were the preposition "στη", capturing everything up to the next comma —
+// "κατά τη διάρκεια κατάσβεσης δασικής πυρκαγιάς" — as a fake settlement/region pair that then
+// failed geocoding and got logged as noise for a post that was never about a real place at all).
+const PREP_BOUNDARY = `(?<![${GREEK_WORD}])`;
+
 // "του δήμου X Y" (genitive, "of the municipality") or "στο/στον δήμο X Y" (accusative, "in the
 // municipality") — the most specific/authoritative phrasing when present, tried first, but only
 // when it's not itself preceded by an "assistance from" framing (see below).
-const DISTRICT_RE = new RegExp(`(?:του\\s+δήμου|στ(?:ο|ον)\\s+δήμο)\\s+(${PHRASE})${PHRASE_END}`, 'gu');
+const DISTRICT_RE = new RegExp(`${PREP_BOUNDARY}(?:του\\s+δήμου|στ(?:ο|ον)\\s+δήμο)\\s+(${PHRASE})${PHRASE_END}`, 'gu');
 // Generic "στο/στη/στην/στον [(την) περιοχή] X Y" fallback. Global so extractLocationPhrase can
 // scan every occurrence, not just the first (see its doc comment).
-const GENERIC_RE = new RegExp(`στ(?:ο|η|ην|ον)(?:\\s+(?:την\\s+)?περιοχή)?\\s+(${PHRASE})${PHRASE_END}`, 'gu');
+const GENERIC_RE = new RegExp(`${PREP_BOUNDARY}στ(?:ο|η|ην|ον)(?:\\s+(?:την\\s+)?περιοχή)?\\s+(${PHRASE})${PHRASE_END}`, 'gu');
 
 // Leading generic-noun qualifiers ("island X") that aren't part of the place name itself.
 const QUALIFIER_RE = /^(?:νήσος|νησί|νησιού)\s+/u;

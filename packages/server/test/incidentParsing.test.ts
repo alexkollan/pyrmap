@@ -20,6 +20,15 @@ describe('isFireIncidentPost', () => {
   it('the daily risk-forecast map has no fire stem and is rejected by this gate alone', () => {
     expect(isFireIncidentPost('⚠️ Χάρτης Πρόβλεψης Κινδύνου 🔥 για αύριο Τρίτη 21/07')).toBe(false);
   });
+
+  it('rejects a "#ΣανΣήμερα" historical/memorial post even though it mentions the fire stem and names a real place', () => {
+    // Real post, 2026-07-23: commemorates a firefighter who died in 2000. Contains "πυρκαγιάς"
+    // AND a genuine "στην Ασσέα Αρκαδίας" clause (his birthplace) that resolves to a real village
+    // — without this exclusion it would have produced a false incident pin for a 26-year-old event.
+    const text =
+      '#ΣανΣήμερα το 2000, έχασε τη ζωή του ο Αντιπύραρχος Ηλίας Γκάτσος, λόγω σοβαρού τραυματισμού που υπέστη κατά τη διάρκεια κατάσβεσης δασικής πυρκαγιάς, στον Ταΰγετο. Είχε γεννηθεί το 1952 στην Ασσέα Αρκαδίας.';
+    expect(isFireIncidentPost(text)).toBe(false);
+  });
 });
 
 describe('extractLocationPhrase', () => {
@@ -117,5 +126,15 @@ describe('extractLocationPhrase', () => {
 
   it('returns null when there is no location clause at all', () => {
     expect(extractLocationPhrase('⚠️ Χάρτης Πρόβλεψης Κινδύνου 🔥 για αύριο Τρίτη 21/07')).toBeNull();
+  });
+
+  it('does not match "στ(ο|η|ην|ον)" as the tail of an unrelated word like "υπέστη"', () => {
+    // Real miss, 2026-07-23: "υπέστη" ends in "στη", which the un-anchored regex matched as if it
+    // were the preposition "στη", capturing "κατά τη διάρκεια κατάσβεσης δασικής" / "πυρκαγιάς" as
+    // a fake settlement/region — garbage that then failed geocoding and got logged as noise. The
+    // real (standalone-word) "στον Ταΰγετο" later in the same text must still match correctly.
+    const text =
+      'λόγω σοβαρού τραυματισμού που υπέστη κατά τη διάρκεια κατάσβεσης δασικής πυρκαγιάς, στον Ταΰγετο.';
+    expect(extractLocationPhrase(text)).toEqual({ settlement: 'Ταΰγετο', regionGenitive: null });
   });
 });
