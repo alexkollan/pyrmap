@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { MapApp } from './MapApp.js';
 import { LoginForm } from './components/LoginForm.js';
-import { ConsentBanner } from './components/ConsentBanner.js';
+import { ConsentGate } from './components/ConsentGate.js';
 import { checkAuth, logout, type AuthStatus } from './api/client.js';
 
 /**
@@ -27,8 +27,7 @@ export function App(): JSX.Element {
   const isAdmin = !status.enabled || status.authenticated;
 
   return (
-    <>
-      <ConsentBanner measurementId={measurementId} />
+    <ConsentGate measurementId={measurementId}>
       <MapApp
         isAdmin={isAdmin}
         onRequestLogin={status.enabled && !isAdmin ? () => setShowLogin(true) : undefined}
@@ -50,6 +49,6 @@ export function App(): JSX.Element {
           onCancel={() => setShowLogin(false)}
         />
       )}
-    </>
+    </ConsentGate>
   );
 }
