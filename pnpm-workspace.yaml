@@ -4,3 +4,9 @@ allowBuilds:
   better-sqlite3: true
   esbuild: true
 injectWorkspacePackages: true
+# Forces a patched fast-uri everywhere it appears transitively (via fastify's own ajv/
+# fast-json-stringify chain) — pnpm audit flagged a high-severity host-confusion bug fixed in
+# 4.1.1, and fastify itself (already on the latest 5.x release, 5.10.0) hasn't picked it up
+# upstream yet (docs/DECISIONS.md 2026-07-23).
+overrides:
+  fast-uri: ^4.1.1

@@ -61,7 +61,11 @@ export async function buildApp(
           'https://*.analytics.google.com',
           'https://api.open-meteo.com',
         ],
-        imgSrc: ["'self'", 'data:', 'https://basemaps.cartocdn.com', 'https://maps.effis.emergency.copernicus.eu'],
+        // CARTO's Leaflet tile URLs use randomized subdomains ({s} -> a/b/c.basemaps.cartocdn.com,
+        // for parallel loading across per-host connection limits) — a bare host with no wildcard
+        // silently blocks every actual tile request. Caught live via a real browser CSP-violation
+        // check (docs/DECISIONS.md 2026-07-23), not assumed.
+        imgSrc: ["'self'", 'data:', 'https://*.basemaps.cartocdn.com', 'https://maps.effis.emergency.copernicus.eu'],
         styleSrc: ["'self'", "'unsafe-inline'"],
         objectSrc: ["'none'"],
         baseUri: ["'self'"],
