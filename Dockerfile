@@ -5,6 +5,10 @@ RUN corepack enable
 WORKDIR /app
 COPY . .
 RUN pnpm install --frozen-lockfile
+# Vite bakes VITE_* vars into the static bundle at build time (unlike every other config value,
+# read at container runtime) — must be a build-arg, not just a runtime environment var.
+ARG VITE_GA_MEASUREMENT_ID
+ENV VITE_GA_MEASUREMENT_ID=$VITE_GA_MEASUREMENT_ID
 RUN pnpm -r build
 RUN pnpm deploy --filter @pyrmap/server --prod /app/deploy/server
 

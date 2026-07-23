@@ -1,6 +1,11 @@
 services:
   pyrmap:
-    build: .
+    build:
+      context: .
+      # Build-arg, not a runtime env var — see the ARG in Dockerfile and .env.example's comment
+      # on VITE_GA_MEASUREMENT_ID for why this one's different from everything below.
+      args:
+        VITE_GA_MEASUREMENT_ID: ${VITE_GA_MEASUREMENT_ID:-}
     container_name: pyrmap
     restart: unless-stopped
     # ${VAR} interpolation, not env_file: a literal .env file only exists for local `docker
