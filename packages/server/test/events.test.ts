@@ -24,7 +24,7 @@ afterEach(() => {
 describe('GET /api/events', () => {
   it('streams a "refresh" message to a connected client when updateBus.publish() fires', async () => {
     const updateBus = new UpdateBus();
-    const app = await buildApp({ logLevel: 'silent' }, repo, undefined, undefined, undefined, updateBus);
+    const app = await buildApp({ logLevel: 'silent' }, repo, undefined, undefined, undefined, undefined, updateBus);
     const address = await app.listen({ port: 0, host: '127.0.0.1' });
 
     try {
@@ -49,7 +49,7 @@ describe('GET /api/events', () => {
 
   it('stops delivering to a client after it disconnects (no leak)', async () => {
     const updateBus = new UpdateBus();
-    const app = await buildApp({ logLevel: 'silent' }, repo, undefined, undefined, undefined, updateBus);
+    const app = await buildApp({ logLevel: 'silent' }, repo, undefined, undefined, undefined, undefined, updateBus);
     const address = await app.listen({ port: 0, host: '127.0.0.1' });
 
     try {

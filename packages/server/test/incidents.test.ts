@@ -35,6 +35,7 @@ async function setup(auth: AuthConfig | null = null, searchSource?: LocationSear
     '/nonexistent',
     incidentRepo,
     undefined,
+    undefined,
     auth,
     undefined,
     undefined,

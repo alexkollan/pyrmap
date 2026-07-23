@@ -35,6 +35,7 @@ describe('GET /api/push/vapid-public-key', () => {
       undefined,
       undefined,
       undefined,
+      undefined,
       pushRepo,
       'test-public-key',
     );
@@ -44,7 +45,18 @@ describe('GET /api/push/vapid-public-key', () => {
   });
 
   it('404s when push notifications are not configured', async () => {
-    const app = await buildApp({ logLevel: 'silent' }, fireRepo, undefined, '/nonexistent', undefined, undefined, undefined, pushRepo, null);
+    const app = await buildApp(
+      { logLevel: 'silent' },
+      fireRepo,
+      undefined,
+      '/nonexistent',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      pushRepo,
+      null,
+    );
     const response = await app.inject({ method: 'GET', url: '/api/push/vapid-public-key' });
     expect(response.statusCode).toBe(404);
   });
@@ -55,6 +67,7 @@ describe('GET /api/push/vapid-public-key', () => {
       fireRepo,
       undefined,
       '/nonexistent',
+      undefined,
       undefined,
       undefined,
       AUTH,
@@ -73,6 +86,7 @@ describe('POST /api/push/subscribe and /api/push/unsubscribe', () => {
       fireRepo,
       undefined,
       '/nonexistent',
+      undefined,
       undefined,
       undefined,
       undefined,
@@ -103,6 +117,7 @@ describe('POST /api/push/subscribe and /api/push/unsubscribe', () => {
       fireRepo,
       undefined,
       '/nonexistent',
+      undefined,
       undefined,
       undefined,
       AUTH,

@@ -36,7 +36,7 @@ describe('auth (disabled — the default)', () => {
 
 describe('auth (enabled)', () => {
   it('leaves /api/fires and /api/status open even with auth configured — only Re-scan/Edit-pins/push are gated (see test/publicAccess.test.ts)', async () => {
-    const app = await buildApp({ logLevel: 'silent' }, repo, undefined, '/nonexistent', undefined, undefined, AUTH);
+    const app = await buildApp({ logLevel: 'silent' }, repo, undefined, '/nonexistent', undefined, undefined, undefined, AUTH);
     const fires = await app.inject({ method: 'GET', url: '/api/fires?hours=24' });
     expect(fires.statusCode).toBe(200);
     const status = await app.inject({ method: 'GET', url: '/api/status' });
@@ -44,13 +44,13 @@ describe('auth (enabled)', () => {
   });
 
   it('/api/health stays reachable regardless of auth (Docker healthcheck needs this)', async () => {
-    const app = await buildApp({ logLevel: 'silent' }, repo, undefined, '/nonexistent', undefined, undefined, AUTH);
+    const app = await buildApp({ logLevel: 'silent' }, repo, undefined, '/nonexistent', undefined, undefined, undefined, AUTH);
     const response = await app.inject({ method: 'GET', url: '/api/health' });
     expect(response.statusCode).toBe(200);
   });
 
   it('rejects login with the wrong password', async () => {
-    const app = await buildApp({ logLevel: 'silent' }, repo, undefined, '/nonexistent', undefined, undefined, AUTH);
+    const app = await buildApp({ logLevel: 'silent' }, repo, undefined, '/nonexistent', undefined, undefined, undefined, AUTH);
     const response = await app.inject({
       method: 'POST',
       url: '/api/login',
@@ -61,7 +61,7 @@ describe('auth (enabled)', () => {
   });
 
   it('logs in with correct credentials, then /api/me reflects the resulting cookie as authenticated', async () => {
-    const app = await buildApp({ logLevel: 'silent' }, repo, undefined, '/nonexistent', undefined, undefined, AUTH);
+    const app = await buildApp({ logLevel: 'silent' }, repo, undefined, '/nonexistent', undefined, undefined, undefined, AUTH);
 
     const login = await app.inject({
       method: 'POST',
@@ -77,7 +77,7 @@ describe('auth (enabled)', () => {
   });
 
   it('/api/me reports unauthenticated with no cookie, without erroring', async () => {
-    const app = await buildApp({ logLevel: 'silent' }, repo, undefined, '/nonexistent', undefined, undefined, AUTH);
+    const app = await buildApp({ logLevel: 'silent' }, repo, undefined, '/nonexistent', undefined, undefined, undefined, AUTH);
     const response = await app.inject({ method: 'GET', url: '/api/me' });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ authenticated: false });
@@ -86,7 +86,7 @@ describe('auth (enabled)', () => {
   it('logout clears the session so the previously-valid cookie no longer authenticates', async () => {
     // Probes via /api/me (not /api/fires, which is public regardless of session — see
     // publicAccess.test.ts) since that's the endpoint actually designed to report auth state.
-    const app = await buildApp({ logLevel: 'silent' }, repo, undefined, '/nonexistent', undefined, undefined, AUTH);
+    const app = await buildApp({ logLevel: 'silent' }, repo, undefined, '/nonexistent', undefined, undefined, undefined, AUTH);
 
     const login = await app.inject({
       method: 'POST',

@@ -75,6 +75,7 @@ describe('GET /api/fires', () => {
     expect(body.polar).toHaveLength(2); // the standalone polar row + the one that confirmed the geo row
     expect(body.geo).toHaveLength(2); // unconfirmed + confirmed, not expired
     expect(body.geo.every((d: { status: string }) => d.status !== 'expired')).toBe(true);
+    expect(body.alerts).toEqual([]); // no alertRepository wired in this test's buildApp call
 
     await app.close();
   });

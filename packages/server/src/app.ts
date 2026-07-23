@@ -12,6 +12,7 @@ import fastifyRateLimit from '@fastify/rate-limit';
 import type { Config } from './config.js';
 import type { FireRepository } from './ports/FireRepository.js';
 import type { IncidentReportRepository } from './ports/IncidentReportRepository.js';
+import type { CivilProtectionAlertRepository } from './ports/CivilProtectionAlertRepository.js';
 import type { PushSubscriptionRepository } from './ports/PushSubscriptionRepository.js';
 import { healthRoutes } from './routes/health.js';
 import { firesRoutes } from './routes/fires.js';
@@ -21,6 +22,7 @@ import { authRoutes, requireAuth, type AuthConfig } from './routes/auth.js';
 import { pushPublicRoutes, pushRoutes } from './routes/push.js';
 import { rescanRoutes } from './routes/rescan.js';
 import { incidentEditRoutes } from './routes/incidents.js';
+import { alertEditRoutes } from './routes/alerts.js';
 import type { LocationSearchSource } from './ports/LocationSearchSource.js';
 import type { Scheduler } from './jobs/scheduler.js';
 import { UpdateBus } from './jobs/updateBus.js';
@@ -40,6 +42,7 @@ export async function buildApp(
   now: () => Date = () => new Date(),
   publicDir: string = DEFAULT_PUBLIC_DIR,
   incidentRepository?: IncidentReportRepository,
+  alertRepository?: CivilProtectionAlertRepository,
   updateBus: UpdateBus = new UpdateBus(),
   auth: AuthConfig | null = null,
   pushSubscriptionRepository?: PushSubscriptionRepository,
@@ -95,7 +98,7 @@ export async function buildApp(
   }
 
   await app.register(async (publicApp) => {
-    await publicApp.register(firesRoutes(repository, now, incidentRepository));
+    await publicApp.register(firesRoutes(repository, now, incidentRepository, alertRepository));
     await publicApp.register(statusRoutes(repository, now));
     await publicApp.register(eventsRoutes(updateBus));
   });
@@ -112,6 +115,9 @@ export async function buildApp(
     }
     if (incidentRepository) {
       await adminApp.register(incidentEditRoutes(incidentRepository, locationSearchSource, updateBus));
+    }
+    if (alertRepository) {
+      await adminApp.register(alertEditRoutes(alertRepository, updateBus));
     }
   });
 

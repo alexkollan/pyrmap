@@ -74,6 +74,7 @@ async function main(): Promise<void> {
     undefined,
     undefined,
     incidentRepository,
+    undefined, // alertRepository — wired once Alert112 ingestion lands below
     updateBus,
     auth,
     pushSubscriptionRepository,

@@ -11,7 +11,7 @@ const AUTH: AuthConfig = { username: 'alex', password: 'secret-pw', sessionSecre
 async function setup() {
   const tmpDir = mkdtempSync(path.join(tmpdir(), 'pyrmap-security-test-'));
   const repo = new SqliteFireRepository(path.join(tmpDir, 'test.db'));
-  const app = await buildApp({ logLevel: 'silent' }, repo, undefined, '/nonexistent', undefined, undefined, AUTH);
+  const app = await buildApp({ logLevel: 'silent' }, repo, undefined, '/nonexistent', undefined, undefined, undefined, AUTH);
   return {
     app,
     cleanup: () => {

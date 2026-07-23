@@ -15,6 +15,7 @@ function fakeScheduler(rescan: Scheduler['rescan']): Scheduler {
     pollGeo: async () => undefined,
     pollPolar: async () => undefined,
     pollIncidents: async () => undefined,
+    pollAlerts: async () => undefined,
     decay: () => undefined,
     retention: () => undefined,
     rescan,
@@ -25,7 +26,7 @@ describe('POST /api/rescan', () => {
   it('calls scheduler.rescan with the requested hours and returns its result', async () => {
     const tmpDir = mkdtempSync(path.join(tmpdir(), 'pyrmap-rescan-route-test-'));
     const repo = new SqliteFireRepository(path.join(tmpDir, 'test.db'));
-    const rescan = vi.fn(async () => ({ satellite: { sourcesChanged: 2 }, incidents: null }));
+    const rescan = vi.fn(async () => ({ satellite: { sourcesChanged: 2 }, incidents: null, alerts: null }));
     let scheduler: Scheduler | null = null;
 
     const app = await buildApp(
@@ -38,6 +39,7 @@ describe('POST /api/rescan', () => {
       undefined,
       undefined,
       undefined,
+      undefined,
       () => scheduler,
     );
     scheduler = fakeScheduler(rescan);
@@ -45,7 +47,7 @@ describe('POST /api/rescan', () => {
     const response = await app.inject({ method: 'POST', url: '/api/rescan', payload: { hours: 12 } });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ satellite: { sourcesChanged: 2 }, incidents: null });
+    expect(response.json()).toEqual({ satellite: { sourcesChanged: 2 }, incidents: null, alerts: null });
     expect(rescan).toHaveBeenCalledWith(12);
 
     repo.close();
@@ -65,7 +67,8 @@ describe('POST /api/rescan', () => {
       undefined,
       undefined,
       undefined,
-      () => fakeScheduler(async () => ({ satellite: { sourcesChanged: 0 }, incidents: null })),
+      undefined,
+      () => fakeScheduler(async () => ({ satellite: { sourcesChanged: 0 }, incidents: null, alerts: null })),
     );
 
     const response = await app.inject({ method: 'POST', url: '/api/rescan', payload: { hours: 999 } });
@@ -85,10 +88,11 @@ describe('POST /api/rescan', () => {
       '/nonexistent',
       undefined,
       undefined,
+      undefined,
       AUTH,
       undefined,
       undefined,
-      () => fakeScheduler(async () => ({ satellite: { sourcesChanged: 0 }, incidents: null })),
+      () => fakeScheduler(async () => ({ satellite: { sourcesChanged: 0 }, incidents: null, alerts: null })),
     );
 
     const response = await app.inject({ method: 'POST', url: '/api/rescan', payload: { hours: 6 } });

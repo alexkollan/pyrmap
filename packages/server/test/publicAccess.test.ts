@@ -17,9 +17,10 @@ function fakeScheduler(): Scheduler {
     pollGeo: async () => undefined,
     pollPolar: async () => undefined,
     pollIncidents: async () => undefined,
+    pollAlerts: async () => undefined,
     decay: () => undefined,
     retention: () => undefined,
-    rescan: async () => ({ satellite: { sourcesChanged: 0 }, incidents: null }),
+    rescan: async () => ({ satellite: { sourcesChanged: 0 }, incidents: null, alerts: null }),
   };
 }
 
@@ -34,6 +35,7 @@ async function setup() {
     undefined,
     '/nonexistent',
     incidentRepo,
+    undefined,
     undefined,
     AUTH,
     pushRepo,
