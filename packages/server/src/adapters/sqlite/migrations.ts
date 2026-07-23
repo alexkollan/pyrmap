@@ -68,6 +68,16 @@ export const MIGRATIONS: readonly string[] = [
   `
   ALTER TABLE incident_reports ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0;
   `,
+  `
+  CREATE TABLE incident_failed_posts (
+    source TEXT NOT NULL,
+    external_id TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    text TEXT NOT NULL,
+    first_seen_at TEXT NOT NULL,
+    PRIMARY KEY (source, external_id)
+  );
+  `,
 ];
 
 /** Applies pending migrations in order, tracked by index in a `migrations` table. */

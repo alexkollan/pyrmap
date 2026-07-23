@@ -170,4 +170,54 @@ describe('ingestIncidentReports', () => {
     const entries = lines.map((line) => JSON.parse(line));
     expect(entries.some((e) => e.reason === 'no-location' && e.text.includes('37 αγροτοδασικές'))).toBe(true);
   });
+
+  it('logs a persistently-failing post exactly once, even when re-fetched across many polls', async () => {
+    // Real observed bug: a post that never resolves never gets inserted, so a naive since_id
+    // (tracking only inserted rows) never advances past it — the source keeps re-returning it
+    // every poll and it got re-logged dozens of times for the same post. FakeIncidentSource here
+    // deliberately ignores since_id (like a source might still legitimately re-return a post
+    // within its lookback window), simulating repeated re-encounters of the same failing post.
+    const logsDir = path.join(tmpDir, 'logs');
+    const source = new FakeIncidentSource(POSTS);
+
+    await ingestIncidentReports(source, repo, SOURCE_ID, NOW, logsDir);
+    await ingestIncidentReports(source, repo, SOURCE_ID, NOW, logsDir);
+    await ingestIncidentReports(source, repo, SOURCE_ID, NOW, logsDir);
+
+    const logFile = path.join(logsDir, '2026-07-20.log');
+    const entries = readFileSync(logFile, 'utf-8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
+    const failingPostEntries = entries.filter((e) => e.externalId === '2079131544006885463');
+    expect(failingPostEntries).toHaveLength(1);
+  });
+
+  it('advances since_id past a failed post too, so it is not refetched forever (cost control)', async () => {
+    // '2079131544006885463' (the no-location aggregate-stat post) never gets inserted, but its
+    // id is smaller than the one post that does resolve here, so this alone wouldn't catch a
+    // regression to the old "only inserted rows count" behavior — use a source where the ONLY
+    // resolvable post has the SMALLEST id, so since_id can only be correct if it also considers
+    // the larger failed id.
+    const postsWithFailureHavingHighestId: RawPost[] = [
+      {
+        externalId: '2079180444990403006',
+        text: 'Υπό μερικό έλεγχο τέθηκε η #πυρκαγιά στο Κορωπί Αττικής.',
+        publishedAt: '2026-07-20T12:23:42Z',
+        url: 'https://x.com/pyrosvestiki/status/2079180444990403006',
+      },
+      {
+        externalId: '9079180444990403006',
+        text: '🔥 37 αγροτοδασικές #πυρκαγιές εκδηλώθηκαν το τελευταίο 24ωρο.',
+        publishedAt: '2026-07-20T12:24:00Z',
+        url: 'https://x.com/pyrosvestiki/status/9079180444990403006',
+      },
+    ];
+    await ingestIncidentReports(new FakeIncidentSource(postsWithFailureHavingHighestId), repo, SOURCE_ID, NOW, path.join(tmpDir, 'logs'));
+
+    const secondSource = new FakeIncidentSource([]);
+    await ingestIncidentReports(secondSource, repo, SOURCE_ID, NOW, path.join(tmpDir, 'logs'));
+
+    expect(secondSource.lastSinceId).toBe('9079180444990403006');
+  });
 });

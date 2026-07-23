@@ -63,9 +63,25 @@ export class SqliteIncidentReportRepository implements IncidentReportRepository 
 
   findLatestExternalId(source: string): string | null {
     const row = this.db
-      .prepare(`SELECT external_id FROM incident_reports WHERE source = ? ORDER BY CAST(external_id AS INTEGER) DESC LIMIT 1`)
-      .get(source) as { external_id: string } | undefined;
+      .prepare(
+        `SELECT external_id FROM (
+           SELECT external_id FROM incident_reports WHERE source = ?
+           UNION ALL
+           SELECT external_id FROM incident_failed_posts WHERE source = ?
+         ) ORDER BY CAST(external_id AS INTEGER) DESC LIMIT 1`,
+      )
+      .get(source, source) as { external_id: string } | undefined;
     return row?.external_id ?? null;
+  }
+
+  recordFailedPostIfNew(source: string, externalId: string, reason: string, text: string, seenAtIso: string): boolean {
+    const result = this.db
+      .prepare(
+        `INSERT OR IGNORE INTO incident_failed_posts (source, external_id, reason, text, first_seen_at)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(source, externalId, reason, text, seenAtIso);
+    return result.changes === 1;
   }
 
   findIncidentReportsSince(sinceIso: string): IncidentReport[] {

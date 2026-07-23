@@ -21,7 +21,14 @@ describe('logIncidentFailure', () => {
 
     logIncidentFailure(
       logsDir,
-      { source: 'PYROSVESTIKI_X', externalId: '1', reason: 'no-location', text: 'πρώτο μήνυμα' },
+      {
+        source: 'PYROSVESTIKI_X',
+        externalId: '1',
+        reason: 'no-location',
+        text: 'πρώτο μήνυμα',
+        url: 'https://x.com/pyrosvestiki/status/1',
+        publishedAt: '2026-07-22T18:00:00Z',
+      },
       now,
     );
     logIncidentFailure(
@@ -31,6 +38,8 @@ describe('logIncidentFailure', () => {
         externalId: '2',
         reason: 'no-geocode',
         text: 'δεύτερο μήνυμα',
+        url: 'https://x.com/pyrosvestiki/status/2',
+        publishedAt: '2026-07-22T18:01:00Z',
         settlement: 'Χ',
         region: 'Ψ',
       },
@@ -48,6 +57,8 @@ describe('logIncidentFailure', () => {
       externalId: '1',
       reason: 'no-location',
       text: 'πρώτο μήνυμα',
+      url: 'https://x.com/pyrosvestiki/status/1',
+      publishedAt: '2026-07-22T18:00:00Z',
     });
 
     const second = JSON.parse(lines[1]!);
@@ -58,12 +69,12 @@ describe('logIncidentFailure', () => {
     const logsDir = path.join(tmpDir, 'logs', 'incidents');
     logIncidentFailure(
       logsDir,
-      { source: 'S', externalId: '1', reason: 'no-location', text: 'a' },
+      { source: 'S', externalId: '1', reason: 'no-location', text: 'a', url: 'u1', publishedAt: '2026-07-22T23:58:00Z' },
       () => new Date('2026-07-22T23:59:00Z'),
     );
     logIncidentFailure(
       logsDir,
-      { source: 'S', externalId: '2', reason: 'no-location', text: 'b' },
+      { source: 'S', externalId: '2', reason: 'no-location', text: 'b', url: 'u2', publishedAt: '2026-07-23T00:00:00Z' },
       () => new Date('2026-07-23T00:01:00Z'),
     );
 

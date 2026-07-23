@@ -117,6 +117,38 @@ describe('hideIncidentReport', () => {
   });
 });
 
+describe('recordFailedPostIfNew', () => {
+  it('returns true the first time, false for a repeat of the same (source, externalId)', () => {
+    expect(repo.recordFailedPostIfNew('A', '500', 'no-location', 'text', '2026-07-23T10:00:00Z')).toBe(true);
+    expect(repo.recordFailedPostIfNew('A', '500', 'no-location', 'text', '2026-07-23T10:05:00Z')).toBe(false);
+  });
+
+  it('treats the same external_id under a different source as distinct', () => {
+    expect(repo.recordFailedPostIfNew('A', '500', 'no-location', 'text', '2026-07-23T10:00:00Z')).toBe(true);
+    expect(repo.recordFailedPostIfNew('B', '500', 'no-location', 'text', '2026-07-23T10:00:00Z')).toBe(true);
+  });
+});
+
+describe('findLatestExternalId', () => {
+  it('considers a permanently-logged failure, not just an inserted report — otherwise since_id never advances past a post that never resolves', () => {
+    insertOne(repo, '100');
+    repo.recordFailedPostIfNew('A', '999', 'no-geocode', 'text', '2026-07-23T10:00:00Z');
+
+    expect(repo.findLatestExternalId('A')).toBe('999');
+  });
+
+  it('returns the inserted id when it is larger than any failed one', () => {
+    repo.recordFailedPostIfNew('A', '50', 'no-geocode', 'text', '2026-07-23T10:00:00Z');
+    insertOne(repo, '100');
+
+    expect(repo.findLatestExternalId('A')).toBe('100');
+  });
+
+  it('returns null when there is neither an inserted report nor a logged failure', () => {
+    expect(repo.findLatestExternalId('NONE')).toBeNull();
+  });
+});
+
 describe('deleteIncidentReport', () => {
   it('removes the row entirely, so the same external_id can be re-inserted afterwards', () => {
     const id = insertOne(repo, '300');

@@ -5,6 +5,23 @@ import type { IncidentSource, RawPost } from '../ports/IncidentSource.js';
 import type { IncidentReportRepository, NewIncidentReportRow } from '../ports/IncidentReportRepository.js';
 import type { GeocodingSource } from '../ports/GeocodingSource.js';
 
+/**
+ * Records a failure exactly once per (source, externalId) ever, then durably logs it — the single
+ * choke point behind processIncidentPost's two skip branches. Without the recordFailedPostIfNew
+ * gate, the same still-unresolved post gets re-logged on every poll/rescan that re-encounters it
+ * (real observed bug: dozens of identical lines for one post over hours, because a post that never
+ * resolves never advances since_id — see the updated findLatestExternalId doc comment).
+ */
+function logFailureOnce(
+  repository: IncidentReportRepository,
+  logsDir: string,
+  now: () => Date,
+  entry: Parameters<typeof logIncidentFailure>[1],
+): void {
+  const isNew = repository.recordFailedPostIfNew(entry.source, entry.externalId, entry.reason, entry.text, now().toISOString());
+  if (isNew) logIncidentFailure(logsDir, entry, now);
+}
+
 /** Posts per poll when there's no since_id yet (first run); since_id makes subsequent polls cost near-zero. */
 const POSTS_PER_POLL = 10;
 const LOG_TEXT_MAX_CHARS = 120;
@@ -23,13 +40,15 @@ export interface IncidentIngestResult {
 /**
  * Classifies, extracts, and geocodes one post. Returns the row to persist, or null if it should
  * be skipped (not a fire post, no location found, or geocoding failed) — in the null-because-
- * skipped-after-classifying case, a failure is durably logged via logIncidentFailure so it can be
- * inspected later. Shared by the regular polling path (ingestIncidentReports) and the rescan path
- * (services/incidentRescanService.ts), so both log failures identically.
+ * skipped-after-classifying case, a failure is durably logged via logIncidentFailure, but at most
+ * once ever per (source, externalId) — see logFailureOnce. Shared by the regular polling path
+ * (ingestIncidentReports) and the rescan path (services/incidentRescanService.ts), so both log
+ * failures identically.
  */
 export async function processIncidentPost(
   post: RawPost,
   sourceId: string,
+  repository: IncidentReportRepository,
   logsDir: string,
   now: () => Date,
   geocodingSource?: GeocodingSource,
@@ -43,7 +62,14 @@ export async function processIncidentPost(
     // human, so the "standard-ish" template has real exceptions; each miss here is a
     // candidate for a new extractLocationPhrase case (see docs/DECISIONS.md 2026-07-20).
     onLog?.(`source=${sourceId} skip=no-location id=${post.externalId} text="${truncate(post.text)}"`);
-    logIncidentFailure(logsDir, { source: sourceId, externalId: post.externalId, reason: 'no-location', text: post.text }, now);
+    logFailureOnce(repository, logsDir, now, {
+      source: sourceId,
+      externalId: post.externalId,
+      reason: 'no-location',
+      text: post.text,
+      url: post.url,
+      publishedAt: post.publishedAt,
+    });
     return null;
   }
 
@@ -59,18 +85,16 @@ export async function processIncidentPost(
     onLog?.(
       `source=${sourceId} skip=no-geocode id=${post.externalId} settlement="${location.settlement}" region="${location.regionGenitive ?? ''}" text="${truncate(post.text)}"`,
     );
-    logIncidentFailure(
-      logsDir,
-      {
-        source: sourceId,
-        externalId: post.externalId,
-        reason: 'no-geocode',
-        text: post.text,
-        settlement: location.settlement,
-        region: location.regionGenitive ?? undefined,
-      },
-      now,
-    );
+    logFailureOnce(repository, logsDir, now, {
+      source: sourceId,
+      externalId: post.externalId,
+      reason: 'no-geocode',
+      text: post.text,
+      url: post.url,
+      publishedAt: post.publishedAt,
+      settlement: location.settlement,
+      region: location.regionGenitive ?? undefined,
+    });
     return null;
   }
 
@@ -125,7 +149,7 @@ export async function ingestIncidentReports(
   const rows: NewIncidentReportRow[] = [];
   let skipped = 0;
   for (const post of posts) {
-    const row = await processIncidentPost(post, sourceId, logsDir, now, geocodingSource, onLog);
+    const row = await processIncidentPost(post, sourceId, repository, logsDir, now, geocodingSource, onLog);
     if (row) rows.push(row);
     else skipped++;
   }

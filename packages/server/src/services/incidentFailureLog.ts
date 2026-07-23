@@ -7,6 +7,10 @@ export interface IncidentFailureEntry {
   reason: 'no-location' | 'no-geocode';
   /** Full original post text, untruncated — the whole point is to have enough to diagnose later. */
   text: string;
+  /** Direct link to the post, so a future reader (human or agent) doesn't have to reconstruct it. */
+  url: string;
+  /** The post's own timestamp (when it was posted), distinct from `timestamp` (when we logged the failure). */
+  publishedAt: string;
   settlement?: string;
   region?: string;
 }

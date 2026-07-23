@@ -61,7 +61,7 @@ export async function rescanIncidentReports(
       skippedAlreadyResolved++;
       continue;
     }
-    const row = await processIncidentPost(post, sourceId, logsDir, now, geocodingSource, onLog);
+    const row = await processIncidentPost(post, sourceId, repository, logsDir, now, geocodingSource, onLog);
     if (row) rows.push(row);
     else failed++;
   }

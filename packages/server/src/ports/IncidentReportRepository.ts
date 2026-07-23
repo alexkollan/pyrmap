@@ -24,8 +24,16 @@ export interface IncidentFetchLogEntry {
 export interface IncidentReportRepository {
   /** INSERT OR IGNORE on external_id; returns only the rows that were newly inserted. */
   insertIncidentReports(rows: NewIncidentReportRow[]): NewIncidentReportRow[];
-  /** The largest external_id already stored for a source, for since_id-style incremental polling. Null if none yet. */
+  /** The largest external_id we've fully dealt with for a source (inserted OR permanently logged as a
+   * failure), for since_id-style incremental polling. Null if none yet. Must include failed posts, not
+   * just inserted ones — otherwise since_id never advances past a post that never resolves, and the
+   * poller refetches (and reprocesses/re-logs) it forever. */
   findLatestExternalId(source: string): string | null;
+  /** Records that (source, externalId) failed to resolve, if it hasn't been recorded before. Returns
+   * true the first time (caller should durably log it), false if already recorded (caller should not
+   * log it again) — the single dedup point ensuring one failure log entry per unique post, ever,
+   * regardless of how many times polling/rescanning re-encounters it. */
+  recordFailedPostIfNew(source: string, externalId: string, reason: string, text: string, seenAtIso: string): boolean;
   /** Incident reports with published_at >= sinceIso, newest first. */
   findIncidentReportsSince(sinceIso: string): IncidentReport[];
   /** external_ids for a source already stored with published_at >= sinceIso — for rescan's "skip what's already resolved" check. */
