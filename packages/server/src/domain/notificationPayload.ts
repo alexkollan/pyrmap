@@ -1,5 +1,6 @@
 import type { NewDetectionRow } from '../ports/FireRepository.js';
 import type { NewIncidentReportRow } from '../ports/IncidentReportRepository.js';
+import type { NewAlertRow } from '../ports/CivilProtectionAlertRepository.js';
 import { nearestPlace } from './reverseGeocoding.js';
 
 export interface NotificationPayload {
@@ -41,5 +42,17 @@ export function buildIncidentPayload(
     title: '📢 Reported fire (X)',
     body,
     url: `/?focus=${report.latitude},${report.longitude}`,
+  };
+}
+
+/** Builds a push payload for a newly inserted 112 alert — official, so it's flagged distinctly
+ * from a Fire Service situational report; its own post text already names the place. */
+export function buildAlertPayload(alert: Pick<NewAlertRow, 'text' | 'latitude' | 'longitude'>): NotificationPayload {
+  const collapsed = alert.text.replace(/\s+/g, ' ').trim();
+  const body = collapsed.length > MAX_INCIDENT_BODY_CHARS ? `${collapsed.slice(0, MAX_INCIDENT_BODY_CHARS)}…` : collapsed;
+  return {
+    title: '🚨 112 Alert',
+    body,
+    url: `/?focus=${alert.latitude},${alert.longitude}`,
   };
 }

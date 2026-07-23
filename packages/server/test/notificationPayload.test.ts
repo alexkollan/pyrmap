@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildDetectionPayload, buildIncidentPayload } from '../src/domain/notificationPayload.js';
+import { buildAlertPayload, buildDetectionPayload, buildIncidentPayload } from '../src/domain/notificationPayload.js';
 
 describe('buildDetectionPayload', () => {
   it('labels a geo-tier detection as unconfirmed and names the nearest place', () => {
@@ -40,5 +40,21 @@ describe('buildIncidentPayload', () => {
     const longText = 'Α'.repeat(200);
     const payload = buildIncidentPayload({ text: longText, latitude: 0, longitude: 0 });
     expect(payload.body).toBe(`${'Α'.repeat(140)}…`);
+  });
+});
+
+describe('buildAlertPayload', () => {
+  it('builds a distinctly-titled payload with a focus deep link', () => {
+    const payload = buildAlertPayload({ text: 'Πυρκαγιά στην περιοχή #Δερβένι.', latitude: 40.7, longitude: 22.9 });
+    expect(payload.title).toBe('🚨 112 Alert');
+    expect(payload.url).toBe('/?focus=40.7,22.9');
+    expect(payload.body).toContain('Δερβένι');
+  });
+
+  it('truncates a long alert body the same way incident payloads do', () => {
+    const longText = 'Α'.repeat(200);
+    const payload = buildAlertPayload({ text: longText, latitude: 0, longitude: 0 });
+    expect(payload.body.endsWith('…')).toBe(true);
+    expect(payload.body.length).toBeLessThan(200);
   });
 });

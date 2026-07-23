@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SqlitePushSubscriptionRepository } from '../src/adapters/sqlite/SqlitePushSubscriptionRepository.js';
-import { notifyNewDetections, notifyNewIncidents } from '../src/services/pushNotificationService.js';
+import { notifyNewAlerts, notifyNewDetections, notifyNewIncidents } from '../src/services/pushNotificationService.js';
 
 let tmpDir: string;
 let repo: SqlitePushSubscriptionRepository;
@@ -73,5 +73,18 @@ describe('notifyNewIncidents', () => {
     expect(send).toHaveBeenCalledTimes(1);
     const [, payload] = send.mock.calls[0]!;
     expect(JSON.parse(payload as string).title).toBe('📢 Reported fire (X)');
+  });
+});
+
+describe('notifyNewAlerts', () => {
+  it('sends one payload per subscription per alert', async () => {
+    repo.saveSubscription({ endpoint: 'https://push.example/a', p256dh: 'p', auth: 'a' });
+    const send = vi.fn().mockResolvedValue(undefined);
+
+    await notifyNewAlerts(repo, [{ text: 'Πυρκαγιά στην περιοχή #Δερβένι.', latitude: 0, longitude: 0 } as never], undefined, send);
+
+    expect(send).toHaveBeenCalledTimes(1);
+    const [, payload] = send.mock.calls[0]!;
+    expect(JSON.parse(payload as string).title).toBe('🚨 112 Alert');
   });
 });
