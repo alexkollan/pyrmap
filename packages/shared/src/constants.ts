@@ -26,6 +26,9 @@ export const MSG_FRP_PIXEL_SOURCE_ID = 'MSG_FRP_PIXEL';
 /** Source id for the Greek Fire Service's X account, geocoded from free text (not a satellite detection). */
 export const PYROSVESTIKI_SOURCE_ID = 'PYROSVESTIKI_X';
 
+/** Source id for @112Greece's official civil-protection "112 activation" alerts (X), geocoded from free text — any hazard type, not fire-specific. */
+export const ALERT_112_SOURCE_ID = 'ALERT_112_X';
+
 /** Confirmation rule thresholds, dev-plan §6.3. */
 export const CONFIRMATION_MAX_DISTANCE_KM = 5;
 export const CONFIRMATION_MAX_TIME_HOURS = 6;

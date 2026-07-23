@@ -45,11 +45,42 @@ export interface LocationSearchResult {
   longitude: number;
 }
 
+/** How precisely a 112 alert's location was resolved: a named local area, or only the containing regional unit. */
+export type AlertPrecision = 'locality' | 'regional_unit';
+
+// [lon, lat] pairs; Polygon rings are exterior+holes, MultiPolygon is one level up (a list of
+// Polygon ring-sets) — same shape convention already used by domain/greeceBoundary.ts.
+export interface GeoJsonPolygon {
+  type: 'Polygon';
+  coordinates: number[][][];
+}
+export interface GeoJsonMultiPolygon {
+  type: 'MultiPolygon';
+  coordinates: number[][][][];
+}
+export type AlertAreaPolygon = GeoJsonPolygon | GeoJsonMultiPolygon;
+
+/** An official civil-protection "112 activation" alert (e.g. @112Greece on X), geocoded from free
+ * Greek text — structurally different from IncidentReport: any hazard type (not fire-only), and
+ * carries a best-effort area polygon rather than just a point. */
+export interface CivilProtectionAlert {
+  id: number;
+  source: string;
+  text: string; // raw original Greek post text
+  url: string;
+  publishedAt: string; // ISO 8601 UTC
+  latitude: number;
+  longitude: number;
+  precision: AlertPrecision;
+  areaPolygon: AlertAreaPolygon | null;
+}
+
 export interface FiresResponse {
   generatedAt: string; // ISO 8601 UTC
   polar: Detection[];
   geo: GeoDetection[];
   incidents: IncidentReport[];
+  alerts: CivilProtectionAlert[];
 }
 
 export interface SourceFetchStatus {
