@@ -20,6 +20,10 @@ export interface StatusBarProps {
   onToggleViewMode: () => void;
   editMode: boolean;
   onToggleEditMode: () => void;
+  /** Gates Re-scan/Edit-pins/push controls — true when auth is off entirely (local dev) or this session is the admin. */
+  isAdmin: boolean;
+  /** Present only when auth is configured and this session isn't the admin. */
+  onRequestLogin?: () => void;
   /** Omitted entirely (no button rendered) when the server has no auth configured. */
   onLogout?: () => void;
   pushSupported: boolean;
@@ -45,6 +49,8 @@ export function StatusBar({
   onToggleViewMode,
   editMode,
   onToggleEditMode,
+  isAdmin,
+  onRequestLogin,
   onLogout,
   pushSupported,
   pushNeedsInstall,
@@ -72,31 +78,35 @@ export function StatusBar({
       <button type="button" onClick={onRefresh} disabled={loading}>
         {loading ? 'Refreshing…' : 'Refresh'}
       </button>
-      <select
-        className="rescan-select"
-        aria-label="Re-scan time window"
-        disabled={rescanning || rescanCooldownActive}
-        value=""
-        onChange={(event) => {
-          const hours = Number(event.target.value) as 6 | 12 | 24;
-          if (hours) onRescan(hours);
-          event.target.value = '';
-        }}
-      >
-        <option value="">{rescanning ? 'Re-scanning…' : rescanCooldownActive ? 'Re-scan (cooling down)' : 'Re-scan…'}</option>
-        <option value="6">Last 6h</option>
-        <option value="12">Last 12h</option>
-        <option value="24">Last 24h</option>
-      </select>
+      {isAdmin && (
+        <select
+          className="rescan-select"
+          aria-label="Re-scan time window"
+          disabled={rescanning || rescanCooldownActive}
+          value=""
+          onChange={(event) => {
+            const hours = Number(event.target.value) as 6 | 12 | 24;
+            if (hours) onRescan(hours);
+            event.target.value = '';
+          }}
+        >
+          <option value="">{rescanning ? 'Re-scanning…' : rescanCooldownActive ? 'Re-scan (cooling down)' : 'Re-scan…'}</option>
+          <option value="6">Last 6h</option>
+          <option value="12">Last 12h</option>
+          <option value="24">Last 24h</option>
+        </select>
+      )}
       <button type="button" onClick={onToggleTheme} aria-label="Toggle dark/light map">
         {theme === 'dark' ? 'Light mode' : 'Dark mode'}
       </button>
       <button type="button" onClick={onToggleViewMode} aria-label="Toggle points/area view">
         {viewMode === 'points' ? 'Area view' : 'Point view'}
       </button>
-      <button type="button" onClick={onToggleEditMode} aria-label="Toggle pin edit mode">
-        {editMode ? 'Done editing' : 'Edit pins'}
-      </button>
+      {isAdmin && (
+        <button type="button" onClick={onToggleEditMode} aria-label="Toggle pin edit mode">
+          {editMode ? 'Done editing' : 'Edit pins'}
+        </button>
+      )}
       <span
         className={loading ? 'auto-refresh-indicator active' : 'auto-refresh-indicator'}
         title="Auto-refreshes every 5 minutes"
@@ -106,12 +116,12 @@ export function StatusBar({
           Data stale{lastSuccessAt ? ` — last update ${formatLocalTime(lastSuccessAt)}` : ''}
         </span>
       )}
-      {pushSupported && (
+      {isAdmin && pushSupported && (
         <button type="button" onClick={onTogglePush} aria-label="Toggle push notifications">
           {pushEnabled ? '🔔 Notifications on' : '🔕 Enable notifications'}
         </button>
       )}
-      {pushNeedsInstall && (
+      {isAdmin && pushNeedsInstall && (
         <span className="push-install-hint" title="Add to Home Screen from Safari's share menu, then reopen from there">
           Add to Home Screen for notifications
         </span>
@@ -119,6 +129,11 @@ export function StatusBar({
       {onLogout && (
         <button type="button" className="logout-button" onClick={onLogout}>
           Log out
+        </button>
+      )}
+      {onRequestLogin && (
+        <button type="button" className="logout-button" onClick={onRequestLogin}>
+          Log in
         </button>
       )}
     </div>

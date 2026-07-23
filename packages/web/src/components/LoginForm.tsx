@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { login } from '../api/client.js';
 
-export function LoginForm({ onSuccess }: { onSuccess: () => void }): JSX.Element {
+export function LoginForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }): JSX.Element {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
@@ -24,6 +24,9 @@ export function LoginForm({ onSuccess }: { onSuccess: () => void }): JSX.Element
     <div className="login-container">
       <form className="login-form" onSubmit={(event) => void handleSubmit(event)}>
         <div className="login-title">🔥 PyrMap</div>
+        <button type="button" className="login-cancel" onClick={onCancel} aria-label="Cancel login">
+          ✕
+        </button>
         <input
           type="text"
           placeholder="Username"

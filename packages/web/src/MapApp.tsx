@@ -19,11 +19,14 @@ import { RESCAN_COOLDOWN_MS, loadRescanCooldownUntil, storeRescanCooldownUntil }
 import { loadStoredHours, storeHours } from './lib/uiPrefs.js';
 
 export interface MapAppProps {
-  /** Only shown when the server actually has auth enabled — hidden entirely in open-access (local dev) mode. */
+  isAdmin: boolean;
+  /** Present only when auth is configured and this session isn't the admin — clicking it opens the login modal. */
+  onRequestLogin?: () => void;
+  /** Only shown when the server actually has auth enabled and this session IS the admin — hidden entirely otherwise. */
   onLogout?: () => void;
 }
 
-export function MapApp({ onLogout }: MapAppProps): JSX.Element {
+export function MapApp({ isAdmin, onRequestLogin, onLogout }: MapAppProps): JSX.Element {
   const [hours, setHours] = useState<number>(loadStoredHours);
   const [theme, setTheme] = useState<Theme>(loadStoredTheme);
   const [viewMode, setViewMode] = useState<ViewMode>(loadStoredViewMode);
@@ -119,6 +122,8 @@ export function MapApp({ onLogout }: MapAppProps): JSX.Element {
         onToggleViewMode={toggleViewMode}
         editMode={editMode}
         onToggleEditMode={() => setEditMode((prev) => !prev)}
+        isAdmin={isAdmin}
+        onRequestLogin={onRequestLogin}
         onLogout={onLogout}
         pushSupported={pushSupport.supported}
         pushNeedsInstall={pushSupport.needsInstall}
