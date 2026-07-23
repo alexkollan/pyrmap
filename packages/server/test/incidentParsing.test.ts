@@ -128,6 +128,27 @@ describe('extractLocationPhrase', () => {
     expect(extractLocationPhrase('⚠️ Χάρτης Πρόβλεψης Κινδύνου 🔥 για αύριο Τρίτη 21/07')).toBeNull();
   });
 
+  it('matches "στα X Y" (neuter plural preposition), not just στο/στη/στην/στον', () => {
+    // Real miss, 2026-07-23: "Οινόφυτα" (neuter plural) takes "στα", which the preposition
+    // alternation didn't include at all — the post was silently logged as no-location despite
+    // naming a specific, resolvable place.
+    expect(extractLocationPhrase('Υπό μερικό έλεγχο τέθηκε η #πυρκαγιά στα Οινόφυτα Βοιωτίας.')).toEqual({
+      settlement: 'Οινόφυτα',
+      regionGenitive: 'Βοιωτίας',
+    });
+  });
+
+  it('terminates the phrase at a " και " clause when there is no punctuation before it', () => {
+    // Real miss, 2026-07-23: two live "reinforcements" update posts ran the location straight
+    // into "και επιχειρούν 120 #πυροσβέστες..." with no comma/period in between. The old
+    // PHRASE_END only accepted a period, comma, or end-of-string, so the non-greedy phrase kept
+    // consuming Greek words past the real place name and then hit a digit ("120") that nothing in
+    // its Greek-only character class could match — the whole clause failed to match at all.
+    const text =
+      'Ενισχύθηκαν περαιτέρω οι δυνάμεις στην #πυρκαγιά που εκδηλώθηκε στο Δερβένι Ωραιοκάστρου Θεσσαλονίκης και επιχειρούν 120 #πυροσβέστες με 4 ομάδες πεζοπόρων της 2ης ΕΜΟΔΕ και 33 οχήματα.';
+    expect(extractLocationPhrase(text)).toEqual({ settlement: 'Δερβένι Ωραιοκάστρου', regionGenitive: 'Θεσσαλονίκης' });
+  });
+
   it('does not match "στ(ο|η|ην|ον)" as the tail of an unrelated word like "υπέστη"', () => {
     // Real miss, 2026-07-23: "υπέστη" ends in "στη", which the un-anchored regex matched as if it
     // were the preposition "στη", capturing "κατά τη διάρκεια κατάσβεσης δασικής" / "πυρκαγιάς" as

@@ -38,10 +38,15 @@ const GREEK_WORD = 'Α-Ωα-ωΆΈΉΊΌΎΏΪΫάέήίόύώϊϋΐΰ';
 const ABBR_PREFIX = '(?:[Α-Ω]{1,3}\\.\\s*)*';
 const PHRASE = `${ABBR_PREFIX}[${GREEK_WORD}][${GREEK_WORD}\\s]*?`;
 
-// The phrase ends at a period/comma, OR at the end of the post — some posts (especially short
-// ones) have no trailing punctuation at all (real post, 2026-07-20: "...η #πυρκαγιά στο δήμο
-// Κιλελέρ Λάρισας" with nothing after "Λάρισας", not even a full stop).
-const PHRASE_END = '\\s*(?:[.,]|$)';
+// The phrase ends at a period/comma, at the end of the post, or right before a " και " clause —
+// some posts (especially short ones) have no trailing punctuation at all (real post, 2026-07-20:
+// "...η #πυρκαγιά στο δήμο Κιλελέρ Λάρισας" with nothing after "Λάρισας", not even a full stop),
+// and others run the location straight into a force-mobilization clause with no punctuation
+// between them at all (real miss, 2026-07-23: "...στο Δερβένι Ωραιοκάστρου Θεσσαλονίκης και
+// επιχειρούν 120 #πυροσβέστες..." — without the "και" lookahead, PHRASE's Greek-only character
+// class ran past the place name into "και επιχειρούν" and then hit the digit "120", which nothing
+// in the class can match, so the whole clause failed to match at all).
+const PHRASE_END = '\\s*(?:[.,]|$|(?=\\sκαι(?:\\s|$)))';
 
 // Requires the "στ..." preposition that follows isn't itself the tail of a longer word — without
 // this, "στο/στη/στην/στον" also match mid-word (real post, 2026-07-23: "υπέστη" ends in "στη",
@@ -54,9 +59,12 @@ const PREP_BOUNDARY = `(?<![${GREEK_WORD}])`;
 // municipality") — the most specific/authoritative phrasing when present, tried first, but only
 // when it's not itself preceded by an "assistance from" framing (see below).
 const DISTRICT_RE = new RegExp(`${PREP_BOUNDARY}(?:του\\s+δήμου|στ(?:ο|ον)\\s+δήμο)\\s+(${PHRASE})${PHRASE_END}`, 'gu');
-// Generic "στο/στη/στην/στον [(την) περιοχή] X Y" fallback. Global so extractLocationPhrase can
-// scan every occurrence, not just the first (see its doc comment).
-const GENERIC_RE = new RegExp(`${PREP_BOUNDARY}στ(?:ο|η|ην|ον)(?:\\s+(?:την\\s+)?περιοχή)?\\s+(${PHRASE})${PHRASE_END}`, 'gu');
+// Generic "στο/στη/στην/στον/στα [(την) περιοχή] X Y" fallback. Global so extractLocationPhrase
+// can scan every occurrence, not just the first (see its doc comment). "στα" (neuter plural, e.g.
+// "στα Οινόφυτα") was missing entirely — real miss, 2026-07-23: two posts naming a real fire in
+// "τα Οινόφυτα" (a plural-form Greek toponym) had no matching preposition at all and were silently
+// logged as no-location despite naming a specific, resolvable place.
+const GENERIC_RE = new RegExp(`${PREP_BOUNDARY}στ(?:ο|η|ην|ον|α)(?:\\s+(?:την\\s+)?περιοχή)?\\s+(${PHRASE})${PHRASE_END}`, 'gu');
 
 // Leading generic-noun qualifiers ("island X") that aren't part of the place name itself.
 const QUALIFIER_RE = /^(?:νήσος|νησί|νησιού)\s+/u;
