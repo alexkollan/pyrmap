@@ -60,3 +60,18 @@ including X), and fully persisted UI state (6h default window, panel collapsed s
 - Any task adding an env var must update `config.ts` + `.env` + `.env.example` +
   `docker-compose.yml`'s `environment:` block, all four — see `CLAUDE.md` §9 and
   `docs/DECISIONS.md` 2026-07-20 for the miss that cost a full session to diagnose.
+
+- **112 civil-protection alerts feature complete** (2026-07-23) — see
+  `docs/superpowers/specs/2026-07-23-112-civil-protection-alerts-design.md` and the plan at
+  `docs/superpowers/plans/2026-07-23-112-civil-protection-alerts.md`. `X_BEARER_TOKEN` gates it,
+  same as incident reports — no new env var needed. Live-verified end-to-end against the real X
+  API + Nominatim (see `docs/DECISIONS.md`); not yet pushed to production — user wants to test it
+  themselves first.
+- Known gap: Κυκλάδες and Αττική regional units have no bundled boundary polygon (periphery-level
+  groupings, not single OSM regional units) — point pin only if a 112 post names only one of these.
+- Known gap: alert retention (`deleteAlertsBefore` exists on the repository) isn't yet wired into
+  `runRetention`'s daily sweep — alerts currently accumulate indefinitely. Low priority (112
+  activations are rare relative to detections/incidents) but revisit if storage becomes a concern.
+- Frontend 112 alert components (marker/area layer/edit controls) were build+unit-test verified
+  but not visually rendered in a real browser in this session — same gap as the pre-existing mobile
+  CSS note above. Verify visually before/while testing the feature live.
