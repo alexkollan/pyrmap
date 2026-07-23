@@ -78,6 +78,32 @@ export const MIGRATIONS: readonly string[] = [
     PRIMARY KEY (source, external_id)
   );
   `,
+  `
+  CREATE TABLE civil_protection_alerts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    external_id TEXT NOT NULL UNIQUE,
+    source TEXT NOT NULL,
+    text TEXT NOT NULL,
+    url TEXT NOT NULL,
+    published_at TEXT NOT NULL,
+    latitude REAL NOT NULL,
+    longitude REAL NOT NULL,
+    precision TEXT NOT NULL CHECK (precision IN ('locality','regional_unit')),
+    area_polygon TEXT,
+    hidden INTEGER NOT NULL DEFAULT 0,
+    ingested_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+  );
+  CREATE INDEX idx_civil_protection_alerts_published ON civil_protection_alerts (published_at);
+
+  CREATE TABLE alert_failed_posts (
+    source TEXT NOT NULL,
+    external_id TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    text TEXT NOT NULL,
+    first_seen_at TEXT NOT NULL,
+    PRIMARY KEY (source, external_id)
+  );
+  `,
 ];
 
 /** Applies pending migrations in order, tracked by index in a `migrations` table. */
